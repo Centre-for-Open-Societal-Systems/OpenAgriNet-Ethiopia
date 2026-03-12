@@ -1,0 +1,576 @@
+/* Agricultural Finance Portal – Split layout, typography & styling to match Figma */
+:root {
+  --fp-font: 'Inter', system-ui, -apple-system, sans-serif;
+  --fp-green: #1E3F2E;
+  --fp-green-hover: #2E6A3F;
+  --fp-green-light: rgba(30, 63, 46, 0.08);
+  --fp-green-focus: rgba(30, 63, 46, 0.2);
+  --fp-text: #111827;
+  --fp-text-secondary: #4b5563;
+  --fp-text-muted: #6b7280;
+  --fp-border: #e5e7eb;
+  --fp-border-focus: #1E3F2E;
+  --fp-radius-sm: 6px;
+  --fp-radius: 8px;
+  --fp-radius-lg: 10px;
+  --fp-radius-xl: 12px;
+  --fp-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --fp-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --fp-shadow-focus: 0 0 0 3px rgba(30, 63, 46, 0.15);
+}
+
+body.finance-portal {
+  margin: 0;
+  min-height: 100vh;
+  background: #fff;
+  font-family: var(--fp-font);
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--fp-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+.fp-split {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* Left panel: cattle / Africa image + green overlay + text + partner banks */
+.fp-left {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+}
+
+.fp-hero-bg {
+  position: absolute;
+  inset: 0;
+  background-color: #1E3F2E;
+  background-image: url('https://images.unsplash.com/photo-1500595046743-cd271d694d30?w=1200');
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.fp-hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(30, 63, 46, 0.75);
+  mix-blend-mode: multiply;
+}
+
+.fp-hero-content {
+  position: relative;
+  z-index: 1;
+  padding: 48px 40px 56px;
+  color: #fff;
+  max-width: 480px;
+  font-family: var(--fp-font);
+}
+
+.fp-hero-title {
+  font-family: var(--fp-font);
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.28;
+  letter-spacing: -0.02em;
+  margin: 0 0 16px 0;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.25);
+}
+
+.fp-hero-text {
+  font-family: var(--fp-font);
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.6;
+  letter-spacing: 0.01em;
+  margin: 0 0 40px 0;
+  opacity: 0.95;
+}
+
+.fp-partner-banks {
+  padding-top: 24px;
+  border-top: 1px solid rgba(255,255,255,0.25);
+}
+
+.fp-partner-title {
+  font-family: var(--fp-font);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0 0 12px 0;
+  opacity: 0.9;
+}
+
+.fp-bank-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.75;
+  letter-spacing: 0.01em;
+  opacity: 0.95;
+}
+
+.fp-bank-list li::before {
+  content: '✓ ';
+  margin-right: 6px;
+  font-weight: 600;
+}
+
+/* Right panel: sign-in */
+.fp-right {
+  width: 50%;
+  max-width: 560px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  position: relative;
+}
+
+/* Top banner: Agricultural Finance Portal */
+.fp-banner {
+  background: var(--fp-green);
+  padding: 20px 24px 24px;
+  flex-shrink: 0;
+}
+
+.fp-banner-inner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.fp-banner-logo {
+  width: 48px;
+  height: 48px;
+  background: rgba(255,255,255,0.15);
+  border-radius: var(--fp-radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.fp-banner-logo svg {
+  width: 28px;
+  height: 28px;
+  display: block;
+}
+
+.fp-banner-text {
+  min-width: 0;
+}
+
+.fp-banner-org {
+  font-family: var(--fp-font);
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255,255,255,0.9);
+  margin-bottom: 2px;
+}
+
+.fp-banner-title {
+  font-family: var(--fp-font);
+  font-size: 1.375rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #fff;
+  margin: 0 0 2px 0;
+  line-height: 1.25;
+}
+
+.fp-banner-sub {
+  font-family: var(--fp-font);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: rgba(255,255,255,0.88);
+  display: block;
+  line-height: 1.3;
+}
+
+.fp-main {
+  flex: 1;
+  padding: 40px 36px 80px;
+  overflow-y: auto;
+}
+
+.fp-title {
+  font-family: var(--fp-font);
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--fp-green);
+  margin: 0 0 4px 0;
+  line-height: 1.3;
+}
+
+.fp-subtitle {
+  font-family: var(--fp-font);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--fp-text-muted);
+  margin: 0 0 32px 0;
+  letter-spacing: 0.01em;
+}
+
+.fp-signin-heading {
+  font-family: var(--fp-font);
+  font-size: 1.375rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--fp-text);
+  margin: 0 0 8px 0;
+  line-height: 1.3;
+}
+
+.fp-signin-hint {
+  font-family: var(--fp-font);
+  font-size: 0.9375rem;
+  font-weight: 400;
+  color: var(--fp-text-secondary);
+  margin: 0 0 24px 0;
+  line-height: 1.5;
+}
+
+.fp-signin-hint a {
+  color: var(--fp-green);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.fp-signin-hint a:hover {
+  text-decoration: underline;
+}
+
+.fp-role-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fp-role-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+  border: 1px solid var(--fp-border);
+  border-radius: var(--fp-radius-xl);
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  position: relative;
+}
+
+.fp-role-card:hover {
+  border-color: var(--fp-green);
+  background: var(--fp-green-light);
+  box-shadow: var(--fp-shadow-sm);
+}
+
+.fp-role-card.selected {
+  border-color: var(--fp-green);
+  background: var(--fp-green-light);
+  box-shadow: 0 0 0 2px var(--fp-green-focus);
+}
+
+.fp-role-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--fp-radius-lg);
+  background: rgba(30, 63, 46, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--fp-green);
+}
+
+.fp-role-icon svg {
+  width: 24px;
+  height: 24px;
+  display: block;
+}
+
+.fp-role-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fp-role-title {
+  font-family: var(--fp-font);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--fp-text);
+  margin: 0;
+  line-height: 1.3;
+}
+
+.fp-role-badge {
+  font-family: var(--fp-font);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fp-green);
+  display: inline-block;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.fp-role-desc {
+  font-family: var(--fp-font);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--fp-text-muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.fp-role-radio {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #d1d5db;
+  border-radius: 50%;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.fp-role-card.selected .fp-role-radio {
+  border-color: var(--fp-green);
+  background: var(--fp-green);
+}
+
+.fp-role-card.selected .fp-role-radio::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  background: white;
+  border-radius: 50%;
+}
+
+.fp-help-fab {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--fp-green);
+  color: white;
+  border: none;
+  font-family: var(--fp-font);
+  font-size: 1.125rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--fp-shadow);
+  transition: background 0.15s ease;
+}
+
+.fp-help-fab:hover {
+  background: var(--fp-green-hover);
+}
+
+/* Sign-in form fields */
+.fp-signin-fields {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--fp-border);
+}
+
+.fp-field {
+  margin-bottom: 18px;
+}
+
+.fp-field label {
+  font-family: var(--fp-font);
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--fp-text);
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+
+.fp-field input {
+  width: 100%;
+  padding: 12px 14px;
+  font-family: var(--fp-font);
+  font-size: 1rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  border: 1px solid var(--fp-border);
+  border-radius: var(--fp-radius);
+  background: #fff;
+  color: var(--fp-text);
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.fp-field input::placeholder {
+  color: var(--fp-text-muted);
+  font-weight: 400;
+}
+
+.fp-field input:focus {
+  outline: none;
+  border-color: var(--fp-border-focus);
+  box-shadow: var(--fp-shadow-focus);
+}
+
+.fp-field-password .fp-password-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  position: relative;
+}
+
+.fp-field-password .fp-password-row input {
+  padding-right: 44px;
+}
+
+.fp-password-toggle {
+  position: absolute;
+  right: 10px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--fp-text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--fp-radius-sm);
+  transition: color 0.15s ease;
+}
+
+.fp-password-toggle:hover {
+  color: var(--fp-text);
+}
+
+.fp-password-toggle svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+.fp-forgot-password {
+  font-family: var(--fp-font);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--fp-green);
+  text-decoration: none;
+  margin-top: 6px;
+  display: inline-block;
+}
+
+.fp-forgot-password:hover {
+  text-decoration: underline;
+}
+
+.fp-actions {
+  margin-top: 24px;
+}
+
+.fp-actions .btn,
+.fp-actions .fp-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.fp-btn-arrow {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+.fp-actions .btn,
+.fp-actions .fp-btn-primary {
+  width: 100%;
+  padding: 14px 16px;
+  font-family: var(--fp-font);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  background: var(--fp-green);
+  color: white;
+  border: none;
+  border-radius: var(--fp-radius-lg);
+  cursor: pointer;
+  display: block;
+  transition: background 0.15s ease;
+  box-shadow: var(--fp-shadow-sm);
+}
+
+.fp-actions .btn:hover,
+.fp-actions .fp-btn-primary:hover {
+  background: var(--fp-green-hover);
+}
+
+.fp-actions .btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.fp-fayda-cta {
+  font-family: var(--fp-font);
+  text-align: center;
+  margin: 16px 0 0 0;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--fp-text-muted);
+  line-height: 1.5;
+}
+
+.fp-fayda-cta a {
+  color: var(--fp-green);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.fp-fayda-cta a:hover {
+  text-decoration: underline;
+}
+
+body.finance-portal .fp-role-card input[type=radio] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (max-width: 900px) {
+  .fp-split {
+    flex-direction: column;
+  }
+  .fp-left {
+    min-height: 320px;
+  }
+  .fp-hero-content {
+    padding: 32px 24px 40px;
+  }
+  .fp-right {
+    width: 100%;
+    max-width: none;
+  }
+}

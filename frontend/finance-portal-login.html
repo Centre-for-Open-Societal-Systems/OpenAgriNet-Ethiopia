@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign in – Agricultural Finance Portal</title>
+  <script src="js/theme.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/finance-portal.css">
+</head>
+<body class="finance-portal">
+  <div class="fp-split">
+    <aside class="fp-left">
+      <div class="fp-hero-bg" role="img" aria-label="Livestock in Ethiopia"></div>
+      <div class="fp-hero-overlay"></div>
+      <div class="fp-hero-content">
+        <h2 class="fp-hero-title">Transforming agriculture through finance</h2>
+        <p class="fp-hero-text">Access loans, manage applications, and grow your farm with Ethiopia’s Agricultural Finance Portal — powered by ATI and partner banks.</p>
+        <div class="fp-partner-banks">
+          <h3 class="fp-partner-title">Partner banks</h3>
+          <ul class="fp-bank-list">
+            <li>Commercial Bank of Ethiopia</li>
+            <li>Abay Bank</li>
+            <li>Bank of Abyssinia</li>
+            <li>Awash Bank</li>
+            <li>Wegagen Bank</li>
+          </ul>
+        </div>
+      </div>
+    </aside>
+
+    <div class="fp-right">
+  <header class="fp-banner">
+    <div class="fp-banner-inner">
+      <div class="fp-banner-logo">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill="currentColor" d="M12 2C8 2 6 5 6 8c0 2 1 4 3 5v9h6V13c2-1 3-3 3-5 0-3-2-6-6-6zm0 4c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2z"/></svg>
+      </div>
+      <div class="fp-banner-text">
+        <span class="fp-banner-org">Ethiopian ATI</span>
+        <h1 class="fp-banner-title">Agricultural Finance Portal</h1>
+        <span class="fp-banner-sub">Agricultural Transformation Institute</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="fp-main">
+    <h2 class="fp-signin-heading">Sign in</h2>
+    <p class="fp-signin-hint">Select your role, then authenticate via <a href="#">Fayda Auth</a>.</p>
+
+    <form id="fp-signin" class="fp-signin-form">
+      <div class="fp-role-cards">
+        <label class="fp-role-card selected" for="role-farmer">
+          <span class="fp-role-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12.65 10A5.99 5.99 0 0 0 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.43 0 4.5-1.44 5.41-3.5H17v2.5h2V13h2v-2h-8.35zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>
+          </span>
+          <span class="fp-role-body">
+            <span class="fp-role-title">Farmer</span>
+            <span class="fp-role-badge">OAN Portal</span>
+            <span class="fp-role-desc">Ethiopia OAN Farmer Portal</span>
+          </span>
+          <span class="fp-role-radio" aria-hidden="true"></span>
+          <input type="radio" name="role" id="role-farmer" value="farmer" checked>
+        </label>
+
+        <label class="fp-role-card" for="role-bank">
+          <span class="fp-role-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2L2 7v2h20V7L12 2zm0 2.5l6 3.5H6l6-3.5zM2 11v9h2v-6h4v6h2v-6h4v6h2v-6h4v6h2v-9H2z"/></svg>
+          </span>
+          <span class="fp-role-body">
+            <span class="fp-role-title">Bank Admin</span>
+            <span class="fp-role-badge">Desktop Preferred</span>
+            <span class="fp-role-desc">Manage loan products &amp; criteria</span>
+          </span>
+          <span class="fp-role-radio" aria-hidden="true"></span>
+          <input type="radio" name="role" id="role-bank" value="bank">
+        </label>
+
+        <label class="fp-role-card" for="role-ati">
+          <span class="fp-role-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
+          </span>
+          <span class="fp-role-body">
+            <span class="fp-role-title">ATI Admin</span>
+            <span class="fp-role-badge">Admin Only</span>
+            <span class="fp-role-desc">Portal oversight &amp; consent logs</span>
+          </span>
+          <span class="fp-role-radio" aria-hidden="true"></span>
+          <input type="radio" name="role" id="role-ati" value="ati">
+        </label>
+      </div>
+
+      <div class="fp-signin-fields">
+        <div class="fp-field">
+          <label for="fp-username">Email or mobile number</label>
+          <input type="text" id="fp-username" name="username" placeholder="Enter your email or mobile number" autocomplete="username">
+        </div>
+        <div class="fp-field fp-field-password">
+          <label for="fp-password">Password</label>
+          <span class="fp-password-row">
+            <input type="password" id="fp-password" name="password" placeholder="Enter your password" autocomplete="current-password">
+            <button type="button" class="fp-password-toggle" aria-label="Show password"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg></button>
+          </span>
+          <a href="#" class="fp-forgot-password">Forgot password?</a>
+        </div>
+        <div class="fp-actions">
+          <button type="submit" class="btn fp-btn-primary">
+            Sign In
+            <svg class="fp-btn-arrow" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
+          </button>
+        </div>
+      </div>
+    </form>
+  </main>
+
+  <button type="button" class="fp-help-fab" aria-label="Help">?</button>
+  </div>
+  </div>
+
+  <script>
+    document.querySelectorAll('.fp-role-card').forEach(function(card) {
+      card.addEventListener('click', function() {
+        document.querySelectorAll('.fp-role-card').forEach(function(c) { c.classList.remove('selected'); });
+        this.classList.add('selected');
+        this.querySelector('input[type=radio]').checked = true;
+      });
+    });
+    document.getElementById('fp-signin').addEventListener('submit', function(e) {
+      var role = document.querySelector('input[name=role]:checked').value;
+      e.preventDefault();
+      window.location.href = 'finance-portal.html';
+    });
+    var toggle = document.querySelector('.fp-password-toggle');
+    var pwInput = document.getElementById('fp-password');
+    if (toggle && pwInput) {
+      toggle.addEventListener('click', function() {
+        var type = pwInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        pwInput.setAttribute('type', type);
+        toggle.setAttribute('aria-label', type === 'password' ? 'Show password' : 'Hide password');
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings – OpenAgriNet Ethiopia</title>
+  <script src="js/theme.js"></script>
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+  <main class="main-content">
+    <nav class="breadcrumb">
+      <a href="dashboard.html">Home</a>
+      <span class="breadcrumb-sep">›</span>
+      <span>Settings</span>
+    </nav>
+    <h1 class="page-title">Settings</h1>
+
+    <section class="settings-section">
+      <h2>Appearance</h2>
+      <p style="font-size: 0.875rem; color: var(--text-secondary); margin: 0 0 16px 0;">Choose how OpenAgriNet looks. Light mode uses a light background; dark mode is easier on the eyes in low light.</p>
+      <div class="theme-options">
+        <label class="theme-option active" data-theme="dark">
+          <input type="radio" name="theme" value="dark" checked>
+          <span>Dark mode</span>
+        </label>
+        <label class="theme-option" data-theme="light">
+          <input type="radio" name="theme" value="light">
+          <span>Light mode</span>
+        </label>
+        <label class="theme-option" data-theme="system">
+          <input type="radio" name="theme" value="system">
+          <span>System default</span>
+        </label>
+      </div>
+    </section>
+
+    <section class="settings-section">
+      <h2>Profile &amp; sign-in</h2>
+      <p style="font-size: 0.875rem; color: var(--text-secondary); margin: 0 0 16px 0;">You can sign in with either your email or mobile number. Keep these up to date below. Contact your administrator to change roles or region.</p>
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="settings-full-name">Full name</label>
+          <input type="text" id="settings-full-name" placeholder="Your full name">
+        </div>
+        <div class="form-group">
+          <label for="settings-email">Email <span style="font-weight:400;color:var(--text-muted);">(used for sign-in)</span></label>
+          <input type="email" id="settings-email" placeholder="you@example.com">
+        </div>
+        <div class="form-group">
+          <label for="settings-mobile">Mobile number <span style="font-weight:400;color:var(--text-muted);">(used for sign-in)</span></label>
+          <input type="tel" id="settings-mobile" placeholder="+251 ...">
+        </div>
+        <div class="form-group">
+          <label for="settings-role">Role</label>
+          <input type="text" id="settings-role" value="Regional Administrator" readonly>
+        </div>
+        <div class="form-group">
+          <label for="settings-region">Region</label>
+          <select id="settings-region">
+            <option value="Oromia" selected>Oromia</option>
+            <option value="Amhara">Amhara</option>
+            <option value="Tigray">Tigray</option>
+            <option value="SNNPR">SNNPR</option>
+            <option value="Addis Ababa">Addis Ababa</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <section class="settings-section">
+      <h2>Preferences</h2>
+      <p style="font-size: 0.875rem; color: var(--text-secondary); margin: 0 0 16px 0;">Notification and display preferences.</p>
+      <div class="toggle-row">
+        <label for="pref-email-notify">Email notifications (new registrations, alerts)</label>
+        <button type="button" class="toggle-switch on" id="pref-email-notify" role="switch" aria-checked="true"></button>
+      </div>
+      <div class="toggle-row">
+        <label for="pref-browser-notify">Browser notifications</label>
+        <button type="button" class="toggle-switch" id="pref-browser-notify" role="switch" aria-checked="false"></button>
+      </div>
+      <div class="toggle-row">
+        <label for="pref-weekly-report">Weekly summary report</label>
+        <button type="button" class="toggle-switch on" id="pref-weekly-report" role="switch" aria-checked="true"></button>
+      </div>
+      <div class="form-grid" style="margin-top: 20px;">
+        <div class="form-group">
+          <label for="pref-language">Language</label>
+          <select id="pref-language">
+            <option value="en" selected>English</option>
+            <option value="am">አማርኛ</option>
+            <option value="or">Oromiffa</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="pref-date-format">Date format</label>
+          <select id="pref-date-format">
+            <option value="DD/MM/YYYY" selected>DD/MM/YYYY</option>
+            <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+            <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="pref-timezone">Time zone</label>
+          <select id="pref-timezone">
+            <option value="Africa/Addis_Ababa" selected>Africa/Addis Ababa (EAT)</option>
+            <option value="UTC">UTC</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <div class="form-actions">
+      <button type="button" class="btn btn-primary" id="settings-save">Save changes</button>
+      <button type="button" class="btn btn-secondary" id="settings-cancel">Cancel</button>
+    </div>
+  </main>
+
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-brand">
+        <div class="sidebar-logo"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C8 2 6 5 6 8c0 2 1 4 3 5v9h6V13c2-1 3-3 3-5 0-3-2-6-6-6zm0 4c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2z"/></svg></div>
+        <div><div class="sidebar-title">OpenAgriNet</div><div class="sidebar-subtitle">Ethiopia</div></div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <ul>
+        <li data-roles="farmer bank admin super"><a href="dashboard.html"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></span>Dashboard</a></li>
+        <li data-roles="farmer admin super"><a href="farmer-registry.html"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg></span>Farmer Registry</a></li>
+        <li data-roles="admin super"><a href="land-registry.html"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg></span>Land Registry</a></li>
+        <li data-roles="farmer admin super"><a href="livestock-registry.html"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg></span>Livestock Registry</a></li>
+        <li data-roles="farmer admin super"><a href="crop-registry.html"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M12 2C8 2 6 5 6 8c0 2 1 4 3 5v9h6V13c2-1 3-3 3-5 0-3-2-6-6-6zm0 4c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2z"/></svg></span>Crop Registry</a></li>
+        <li data-roles="admin super"><a href="soil-registry.html"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M12 3L2 12h3v8h14v-8h3L12 3zm0 12.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg></span>Soil Registry</a></li>
+        <li data-roles="admin super"><a href="seed-registry.html"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.09-13 3.08 2 3.87 2.16 7.42 1.75 9.92L17 8z"/></svg></span>Seed Registry</a></li>
+        <li data-roles="farmer bank admin super"><a href="finance-portal.html"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M12 2L2 7v2h20V7L12 2zm0 2.5l6 3.5H6l6-3.5zM2 11v9h2v-6h4v6h2v-6h4v6h2v-6h4v6h2v-9H2z"/></svg></span>Finance Portal</a></li>
+        <li data-roles="admin super"><a href="data-integration-hub.html"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h10v2H4z"/></svg></span>Data Integration Hub<span class="nav-chevron"><svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg></span></a></li>
+        <li data-roles="admin super"><a href="administration.html"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg></span>Administration<span class="nav-chevron"><svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg></span></a></li>
+        <li data-roles="bank admin super"><a href="reports.html"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M5 9.2h3V19H5V9.2zM10.6 5h2.8v14h-2.8V5zm5.6 8H19v6h-2.8v-6z"/></svg></span>Reports &amp; Analytics</a></li>
+        <li data-roles="farmer bank admin super"><a href="settings.html" class="active"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.04.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg></span>Settings</a></li>
+      </ul>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="role-switcher-wrap"><label class="role-switcher-label">Role (demo)</label><select id="role-switcher" class="role-switcher-select" aria-label="Switch role"><option value="farmer">Farmer</option><option value="bank">Bank User</option><option value="admin">Admin User</option><option value="super">Super User</option></select></div>
+      <p class="sidebar-user" id="sidebar-user">—</p>
+      <a href="index.html" class="sidebar-logout" id="sidebar-logout">Log out</a>
+      <button type="button" class="sidebar-help" aria-label="Help">?</button>
+    </div>
+  </aside>
+  <script src="js/roles.js"></script>
+
+  <script>
+    (function () {
+      var STORAGE_THEME = 'oan-theme';
+      function getStoredTheme() { return localStorage.getItem(STORAGE_THEME) || 'dark'; }
+      function setTheme(val) {
+        var resolved = val === 'system' ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : val;
+        document.documentElement.setAttribute('data-theme', resolved);
+        localStorage.setItem(STORAGE_THEME, val);
+      }
+      var stored = getStoredTheme();
+      setTheme(stored);
+      document.querySelectorAll('.theme-option').forEach(function (o) {
+        o.classList.toggle('active', o.getAttribute('data-theme') === stored);
+        o.querySelector('input').checked = (o.getAttribute('data-theme') === stored);
+      });
+      window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', function () {
+        if (getStoredTheme() === 'system') setTheme('system');
+      });
+
+      document.querySelectorAll('.theme-option').forEach(function (el) {
+        el.addEventListener('click', function () {
+          document.querySelectorAll('.theme-option').forEach(function (o) { o.classList.remove('active'); });
+          this.classList.add('active');
+          this.querySelector('input').checked = true;
+          setTheme(this.getAttribute('data-theme'));
+        });
+      });
+
+      document.querySelectorAll('.toggle-switch').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var on = this.classList.toggle('on');
+          this.setAttribute('aria-checked', on);
+        });
+      });
+
+      (function loadProfile() {
+        var name = localStorage.getItem('oan-user') || '';
+        var email = localStorage.getItem('oan-email') || '';
+        var mobile = localStorage.getItem('oan-mobile') || '';
+        if (name) document.getElementById('settings-full-name').value = name;
+        if (email) document.getElementById('settings-email').value = email;
+        if (mobile) document.getElementById('settings-mobile').value = mobile;
+      })();
+
+      document.getElementById('settings-save').addEventListener('click', function () {
+        var name = document.getElementById('settings-full-name').value.trim();
+        var email = document.getElementById('settings-email').value.trim();
+        var mobile = document.getElementById('settings-mobile').value.trim();
+        if (name) localStorage.setItem('oan-user', name);
+        localStorage.setItem('oan-email', email);
+        localStorage.setItem('oan-mobile', mobile);
+        alert('Settings saved. You can sign in with your email or mobile number.');
+      });
+      document.getElementById('settings-cancel').addEventListener('click', function () {
+        window.location.href = 'dashboard.html';
+      });
+    })();
+  </script>
+</body>
+</html>

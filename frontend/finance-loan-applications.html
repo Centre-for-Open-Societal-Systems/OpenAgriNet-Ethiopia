@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Loan Applications – Finance Portal</title>
+  <script src="js/theme.js"></script>
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+  <main class="main-content">
+    <nav class="breadcrumb">
+      <a href="dashboard.html">Home</a>
+      <span class="breadcrumb-sep">›</span>
+      <a href="finance-portal.html">Finance Portal</a>
+      <span class="breadcrumb-sep">›</span>
+      <span>Loan Applications</span>
+    </nav>
+    <h1 class="page-title">Loan Applications</h1>
+
+    <div class="tabs">
+      <a href="finance-loan-applications.html" class="active">All applications</a>
+      <a href="#">Pending</a>
+      <a href="#">Approved</a>
+      <a href="#">Disbursed</a>
+    </div>
+
+    <div class="toolbar">
+      <div class="search-wrap">
+        <span class="search-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg></span>
+        <input type="search" class="search-input" placeholder="Search by Application ID, farmer name, or bank" aria-label="Search applications">
+      </div>
+      <select class="filter-select" aria-label="Status">
+        <option value="">All statuses</option>
+        <option>Pending</option>
+        <option>Approved</option>
+        <option>Rejected</option>
+        <option>Disbursed</option>
+      </select>
+      <select class="filter-select" aria-label="Bank">
+        <option value="">All banks</option>
+        <option>Commercial Bank of Ethiopia</option>
+        <option>Abay Bank</option>
+        <option>Bank of Abyssinia</option>
+      </select>
+      <button type="button" class="btn btn-primary" id="btn-new-loan">New application</button>
+      <button type="button" class="btn btn-secondary btn-sm">Export</button>
+    </div>
+
+    <div class="table-card">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th class="col-check"><input type="checkbox" aria-label="Select all"></th>
+            <th>Application ID</th>
+            <th>Applicant</th>
+            <th>Farmer ID</th>
+            <th>Bank</th>
+            <th>Amount (ETB)</th>
+            <th>Product</th>
+            <th>Status</th>
+            <th>Submitted</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><input type="checkbox" aria-label="Select row"></td>
+            <td>AFP-2024-001</td>
+            <td>Abebe Kebede</td>
+            <td>OAN-FR-001</td>
+            <td>Commercial Bank of Ethiopia</td>
+            <td>50,000</td>
+            <td>Seasonal loan</td>
+            <td><span class="badge badge-pending">Pending</span></td>
+            <td>2024-03-01</td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" aria-label="Select row"></td>
+            <td>AFP-2024-002</td>
+            <td>Tigist Hailu</td>
+            <td>OAN-FR-002</td>
+            <td>Abay Bank</td>
+            <td>75,000</td>
+            <td>Input finance</td>
+            <td><span class="badge badge-active">Approved</span></td>
+            <td>2024-02-28</td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" aria-label="Select row"></td>
+            <td>AFP-2024-003</td>
+            <td>Dawit Mekonnen</td>
+            <td>OAN-FR-003</td>
+            <td>Bank of Abyssinia</td>
+            <td>30,000</td>
+            <td>Seasonal loan</td>
+            <td><span class="badge badge-pending">Under review</span></td>
+            <td>2024-03-05</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="pagination">
+        <span>Showing 1–3 of 3 (sample data)</span>
+        <div class="pagination-buttons">
+          <button type="button" disabled>Previous</button>
+          <button type="button">Next</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="modal-overlay" id="new-loan-modal" aria-hidden="true">
+    <div class="modal-dialog" role="dialog" aria-labelledby="new-loan-title" aria-modal="true">
+      <div class="modal-header">
+        <h2 class="modal-title" id="new-loan-title">New loan application</h2>
+        <button type="button" class="modal-close" id="new-loan-close" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="new-loan-form">
+          <div class="modal-section">
+            <h3 class="modal-section-title">Applicant identity</h3>
+            <div class="lookup-row">
+              <div class="form-group">
+                <label for="loan-farmer-id">Farmer ID</label>
+                <input type="text" id="loan-farmer-id" placeholder="e.g. OAN-FR-001" autocomplete="off">
+              </div>
+              <div class="form-group">
+                <label for="loan-fyda-id">Fayda ID (National ID)</label>
+                <input type="text" id="loan-fyda-id" placeholder="e.g. 1234-5678-9012" autocomplete="off">
+              </div>
+              <button type="button" class="btn btn-secondary" id="loan-lookup">Look up</button>
+            </div>
+            <div class="form-grid" style="margin-top: 12px;">
+              <div class="form-group">
+                <label for="loan-applicant-name">Applicant name</label>
+                <input type="text" id="loan-applicant-name" placeholder="Filled after lookup or enter manually">
+              </div>
+              <div class="form-group">
+                <label for="loan-region">Region</label>
+                <input type="text" id="loan-region" placeholder="e.g. Oromia" list="regions-list">
+              </div>
+              <div class="form-group">
+                <label for="loan-woreda">Woreda</label>
+                <input type="text" id="loan-woreda" placeholder="e.g. Bishoftu">
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-section">
+            <h3 class="modal-section-title">Plot & land information</h3>
+            <p style="font-size: 0.875rem; color: var(--text-secondary); margin: 0 0 12px 0;">Pull from registry using Farmer ID, or enter details manually.</p>
+            <div class="pull-manual-tabs">
+              <button type="button" class="active" data-mode="pull" id="tab-pull">Pull from registry</button>
+              <button type="button" data-mode="manual" id="tab-manual">Enter manually</button>
+            </div>
+            <div id="plot-pull-area">
+              <p style="font-size: 0.875rem; color: var(--text-muted); margin: 0 0 8px 0;">Click &quot;Look up&quot; above to load plots linked to this farmer.</p>
+              <div id="plot-summary-wrap" style="display: none;">
+                <table class="plot-summary-table">
+                  <thead>
+                    <tr>
+                      <th>Plot ID</th>
+                      <th>Crop</th>
+                      <th>Season / Year</th>
+                      <th>Area (ha)</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="plot-summary-tbody"></tbody>
+                </table>
+                <p style="font-size: 0.8125rem; color: var(--text-secondary); margin: 8px 0 0 0;">Total area (from registry): <strong id="plot-total-ha">—</strong> ha</p>
+              </div>
+            </div>
+            <div id="plot-manual-area" style="display: none;">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="loan-plot-id">Plot ID</label>
+                  <input type="text" id="loan-plot-id" placeholder="e.g. PL-001">
+                </div>
+                <div class="form-group">
+                  <label for="loan-area-ha">Total area farmed (ha)</label>
+                  <input type="number" id="loan-area-ha" step="0.01" min="0" placeholder="e.g. 1.5">
+                </div>
+                <div class="form-group">
+                  <label for="loan-land-use">Land use type</label>
+                  <select id="loan-land-use">
+                    <option value="">Select</option>
+                    <option>Irrigated</option>
+                    <option>Rain-fed</option>
+                    <option>Mixed</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="loan-crops">Crops grown</label>
+                  <input type="text" id="loan-crops" placeholder="e.g. Teff, Maize">
+                </div>
+                <div class="form-group">
+                  <label for="loan-season">Season / Year</label>
+                  <input type="text" id="loan-season" placeholder="e.g. 2024 Meher">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-section">
+            <h3 class="modal-section-title">Type of farming</h3>
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="loan-farming-type">Primary farming type</label>
+                <select id="loan-farming-type">
+                  <option value="">Select</option>
+                  <option>Crop farming</option>
+                  <option>Livestock</option>
+                  <option>Mixed (crop + livestock)</option>
+                  <option>Agro-processing</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-section">
+            <h3 class="modal-section-title">Assets held (for bank assessment)</h3>
+            <p style="font-size: 0.875rem; color: var(--text-secondary); margin: 0 0 12px 0;">Summary of assets that may support loan eligibility. Filled from registry on lookup or add manually.</p>
+            <ul class="asset-list" id="asset-list">
+              <li><span>Tractors / machinery</span><span class="asset-value" id="asset-tractors">—</span></li>
+              <li><span>Livestock (count / type)</span><span class="asset-value" id="asset-livestock">—</span></li>
+              <li><span>Equipment (irrigation, storage)</span><span class="asset-value" id="asset-equipment">—</span></li>
+              <li><span>Other assets</span><span class="asset-value" id="asset-other">—</span></li>
+            </ul>
+            <div class="form-group" style="margin-top: 12px;">
+              <label for="loan-assets-notes">Additional assets or collateral notes</label>
+              <textarea id="loan-assets-notes" rows="2" placeholder="e.g. oxen, ploughs, warehouse"></textarea>
+            </div>
+          </div>
+
+          <div class="modal-section">
+            <h3 class="modal-section-title">Loan request</h3>
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="loan-amount">Requested amount (ETB)</label>
+                <input type="number" id="loan-amount" min="0" step="1000" placeholder="e.g. 50000">
+              </div>
+              <div class="form-group">
+                <label for="loan-product">Product type</label>
+                <select id="loan-product">
+                  <option value="">Select</option>
+                  <option>Seasonal loan</option>
+                  <option>Input finance</option>
+                  <option>Equipment / machinery</option>
+                  <option>Livestock finance</option>
+                  <option>Working capital</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="loan-bank">Preferred partner bank</label>
+                <select id="loan-bank">
+                  <option value="">Any</option>
+                  <option>Commercial Bank of Ethiopia</option>
+                  <option>Abay Bank</option>
+                  <option>Bank of Abyssinia</option>
+                </select>
+                <datalist id="regions-list">
+                  <option value="Addis Ababa">
+                  <option value="Oromia">
+                  <option value="Amhara">
+                  <option value="Tigray">
+                  <option value="SNNPR">
+                  <option value="Somali">
+                </datalist>
+              </div>
+              <div class="form-group" style="grid-column: 1 / -1;">
+                <label for="loan-purpose">Purpose of loan</label>
+                <textarea id="loan-purpose" rows="2" placeholder="e.g. Inputs for 2024 Meher season, Teff and Maize"></textarea>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" id="new-loan-cancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="new-loan-submit">Submit application</button>
+      </div>
+    </div>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-brand">
+        <div class="sidebar-logo"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C8 2 6 5 6 8c0 2 1 4 3 5v9h6V13c2-1 3-3 3-5 0-3-2-6-6-6zm0 4c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2z"/></svg></div>
+        <div><div class="sidebar-title">Finance Portal</div><div class="sidebar-subtitle">ATI Ethiopia</div></div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <ul>
+        <li data-roles="farmer bank admin super"><a href="finance-portal.html"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></span>Dashboard</a></li>
+        <li data-roles="farmer bank admin super"><a href="finance-loan-applications.html" class="active"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg></span>Loan Applications</a></li>
+        <li data-roles="bank admin super"><a href="customize-bank-names.html"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></span>Customize Bank Names</a></li>
+        <li data-roles="farmer bank admin super"><a href="finance-partner-banks.html"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M12 2L2 7v2h20V7L12 2zm0 2.5l6 3.5H6l6-3.5zM2 11v9h2v-6h4v6h2v-6h4v6h2v-6h4v6h2v-9H2z"/></svg></span>Partner Banks</a></li>
+        <li data-roles="bank admin super"><a href="reports.html"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M5 9.2h3V19H5V9.2zM10.6 5h2.8v14h-2.8V5zm5.6 8H19v6h-2.8v-6z"/></svg></span>Reports &amp; Analytics</a></li>
+        <li data-roles="farmer bank admin super"><a href="dashboard.html"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M12 2C8 2 6 5 6 8c0 2 1 4 3 5v9h6V13c2-1 3-3 3-5 0-3-2-6-6-6zm0 4c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2z"/></svg></span>OpenAgriNet Home</a></li>
+      </ul>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="role-switcher-wrap"><label class="role-switcher-label">Role (demo)</label><select id="role-switcher" class="role-switcher-select" aria-label="Switch role"><option value="farmer">Farmer</option><option value="bank">Bank User</option><option value="admin">Admin User</option><option value="super">Super User</option></select></div>
+      <p class="sidebar-user" id="sidebar-user">—</p>
+      <a href="index.html" class="sidebar-logout" id="sidebar-logout">Log out</a>
+      <button type="button" class="sidebar-help" aria-label="Help">?</button>
+    </div>
+  </aside>
+  <script src="js/roles.js"></script>
+  <script>
+    (function () {
+      var modal = document.getElementById('new-loan-modal');
+      var btnOpen = document.getElementById('btn-new-loan');
+      var btnClose = document.getElementById('new-loan-close');
+      var btnCancel = document.getElementById('new-loan-cancel');
+      var btnLookup = document.getElementById('loan-lookup');
+      var tabPull = document.getElementById('tab-pull');
+      var tabManual = document.getElementById('tab-manual');
+      var plotPullArea = document.getElementById('plot-pull-area');
+      var plotManualArea = document.getElementById('plot-manual-area');
+      var plotSummaryWrap = document.getElementById('plot-summary-wrap');
+      var plotSummaryTbody = document.getElementById('plot-summary-tbody');
+      var plotTotalHa = document.getElementById('plot-total-ha');
+
+      function openModal() {
+        modal.classList.add('is-open');
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+      }
+
+      function closeModal() {
+        modal.classList.remove('is-open');
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+      }
+
+      btnOpen.addEventListener('click', openModal);
+      btnClose.addEventListener('click', closeModal);
+      btnCancel.addEventListener('click', closeModal);
+      modal.addEventListener('click', function (e) {
+        if (e.target === modal) closeModal();
+      });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && modal.classList.contains('is-open')) closeModal();
+      });
+
+      tabPull.addEventListener('click', function () {
+        tabPull.classList.add('active');
+        tabManual.classList.remove('active');
+        plotPullArea.style.display = 'block';
+        plotManualArea.style.display = 'none';
+      });
+      tabManual.addEventListener('click', function () {
+        tabManual.classList.add('active');
+        tabPull.classList.remove('active');
+        plotManualArea.style.display = 'block';
+        plotPullArea.style.display = 'none';
+      });
+
+      // Sample data for demo lookup (Farmer ID OAN-FR-001 or any)
+      var sampleFarmer = {
+        name: 'Abebe Kebede',
+        region: 'Oromia',
+        woreda: 'Bishoftu',
+        fydaId: '1234-5678-9012',
+        plots: [
+          { plotId: 'PL-001', crop: 'Teff', season: '2024 Meher', areaHa: 0.5, status: 'Planted' },
+          { plotId: 'PL-002', crop: 'Maize', season: '2024 Meher', areaHa: 1.2, status: 'Harvested' }
+        ],
+        farmingType: 'Mixed (crop + livestock)',
+        assets: {
+          tractors: '1 tractor (45 HP)',
+          livestock: '4 cattle, 8 goats',
+          equipment: 'Irrigation pump, storage shed',
+          other: '2 oxen, plough'
+        }
+      };
+
+      btnLookup.addEventListener('click', function () {
+        var farmerId = (document.getElementById('loan-farmer-id').value || '').trim();
+        var fydaId = (document.getElementById('loan-fyda-id').value || '').trim();
+        if (!farmerId && !fydaId) {
+          farmerId = 'OAN-FR-001';
+          document.getElementById('loan-farmer-id').value = farmerId;
+        }
+        document.getElementById('loan-applicant-name').value = sampleFarmer.name;
+        document.getElementById('loan-region').value = sampleFarmer.region;
+        document.getElementById('loan-woreda').value = sampleFarmer.woreda;
+        if (!fydaId) document.getElementById('loan-fyda-id').value = sampleFarmer.fydaId;
+        document.getElementById('loan-farming-type').value = sampleFarmer.farmingType;
+
+        plotSummaryTbody.innerHTML = '';
+        var totalHa = 0;
+        sampleFarmer.plots.forEach(function (p) {
+          totalHa += p.areaHa;
+          var tr = document.createElement('tr');
+          tr.innerHTML = '<td>' + p.plotId + '</td><td>' + p.crop + '</td><td>' + p.season + '</td><td>' + p.areaHa + '</td><td>' + p.status + '</td>';
+          plotSummaryTbody.appendChild(tr);
+        });
+        plotTotalHa.textContent = totalHa.toFixed(2);
+        plotSummaryWrap.style.display = 'block';
+
+        document.getElementById('asset-tractors').textContent = sampleFarmer.assets.tractors;
+        document.getElementById('asset-livestock').textContent = sampleFarmer.assets.livestock;
+        document.getElementById('asset-equipment').textContent = sampleFarmer.assets.equipment;
+        document.getElementById('asset-other').textContent = sampleFarmer.assets.other;
+      });
+
+      document.getElementById('new-loan-submit').addEventListener('click', function () {
+        var farmerId = document.getElementById('loan-farmer-id').value;
+        var name = document.getElementById('loan-applicant-name').value;
+        if (!name && !farmerId) {
+          alert('Enter Farmer ID / Fayda ID and click Look up, or enter Applicant name.');
+          return;
+        }
+        alert('Application submitted (demo). In production this would create a new loan application.');
+        closeModal();
+      });
+    })();
+  </script>
+</body>
+</html>
