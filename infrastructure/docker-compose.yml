@@ -1,0 +1,47 @@
+services:
+
+  postgres:
+    image: postgres:17
+    container_name: openagrinet-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: openagrinet
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../backend/sql/create_tables.sql:/docker-entrypoint-initdb.d/01-create_tables.sql:ro
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0
+    container_name: openagrinet-keycloak
+    entrypoint: ["sh", "/scripts/keycloak-dev-entrypoint.sh"]
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HTTP_ENABLED: "true"
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./keycloak-dev-entrypoint.sh:/scripts/keycloak-dev-entrypoint.sh:ro
+
+  backend:
+    image: node:20
+    container_name: openagrinet-backend
+    working_dir: /app
+    volumes:
+      - ../backend:/app
+    command: npm run start
+    environment:
+      PORT: "5000"
+      DATABASE_URL: "postgresql://admin:admin@postgres:5432/openagrinet"
+    ports:
+      - "5001:5000"
+    depends_on:
+      - postgres
+      - keycloak
+
+volumes:
+  postgres_data:

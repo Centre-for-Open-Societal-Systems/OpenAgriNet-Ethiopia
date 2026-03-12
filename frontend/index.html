@@ -157,15 +157,47 @@
       form.addEventListener('submit', function (e) {
         e.preventDefault();
         var identifier = document.getElementById('login-username').value.trim();
-        var username = identifier || 'User';
+        var password = document.getElementById('login-password').value;
         var role = document.querySelector('input[name=role]:checked').value;
-        localStorage.setItem('oan-user', username);
-        localStorage.setItem('oan-role', role);
-        if (identifier) {
-          if (identifier.indexOf('@') !== -1) localStorage.setItem('oan-email', identifier);
-          else if (/^[\d+\s\-()]+$/.test(identifier)) localStorage.setItem('oan-mobile', identifier);
+        var submitBtn = form.querySelector('button[type=submit]');
+        var apiBase = window.OAN_API_BASE || 'http://localhost:5000';
+
+        if (!identifier || !password) {
+          if (!identifier && !password) {
+            var username = 'User';
+            localStorage.setItem('oan-user', username);
+            localStorage.setItem('oan-role', role);
+            window.location.href = 'dashboard.html';
+            return;
+          }
+          alert('For real login, enter both email/mobile and password.');
+          return;
         }
-        window.location.href = 'dashboard.html';
+
+        submitBtn.disabled = true;
+        fetch(apiBase + '/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: identifier, password: password, role: role })
+        })
+          .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+          .then(function (result) {
+            if (result.ok && result.data.success) {
+              localStorage.setItem('oan-user', result.data.user.username);
+              localStorage.setItem('oan-role', result.data.user.role);
+              if (identifier.indexOf('@') !== -1) localStorage.setItem('oan-email', identifier);
+              else if (/^[\d+\s\-()]+$/.test(identifier)) localStorage.setItem('oan-mobile', identifier);
+              window.location.href = 'dashboard.html';
+            } else {
+              alert(result.data.error || 'Login failed');
+              submitBtn.disabled = false;
+            }
+          })
+          .catch(function (err) {
+            console.error('Login error:', err);
+            alert('Cannot reach login service. Check that the backend is running at ' + apiBase);
+            submitBtn.disabled = false;
+          });
       });
 
       var toggle = document.querySelector('.fp-password-toggle');
