@@ -1,6 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const { pool } = require('../db/pool');
+const jwt = require('jsonwebtoken');
 
 const router = express.Router();
 
@@ -119,6 +120,11 @@ router.post('/login', async (req, res) => {
         username: user.username,
         role: user.role,
       },
+      token: jwt.sign(
+        { sub: String(user._id), role: user.role, username: user.username },
+        process.env.JWT_SECRET || 'dev-secret',
+        { expiresIn: '2h' }
+      ),
     });
   } catch (err) {
     console.error('POST /login error:', err);

@@ -1,6 +1,5 @@
 # Software Requirement Document (SRS): OpenAgriNet (OAN) Platform
 ## Livestock Registry Module Specification
-
 ---
 
 ## 1. Introduction

@@ -1,6 +1,5 @@
 # Software Requirement Document (SRS): OpenAgriNet (OAN) Platform
 ## Crop Registry Module Specification
-
 ---
 
 ## 1. Introduction

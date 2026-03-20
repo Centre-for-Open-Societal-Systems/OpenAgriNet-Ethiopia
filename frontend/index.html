@@ -185,6 +185,7 @@
             if (result.ok && result.data.success) {
               localStorage.setItem('oan-user', result.data.user.username);
               localStorage.setItem('oan-role', result.data.user.role);
+          if (result.data.token) localStorage.setItem('oan-token', result.data.token);
               if (identifier.indexOf('@') !== -1) localStorage.setItem('oan-email', identifier);
               else if (/^[\d+\s\-()]+$/.test(identifier)) localStorage.setItem('oan-mobile', identifier);
               window.location.href = 'dashboard.html';
