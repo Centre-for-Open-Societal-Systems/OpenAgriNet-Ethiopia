@@ -10,11 +10,16 @@
   var STORAGE_USER = 'oan-user';
   var APP_PAGES = ['dashboard', 'farmer-registry', 'land-registry', 'livestock-registry', 'crop-registry',
     'soil-registry', 'seed-registry', 'finance-portal', 'data-integration-hub', 'administration',
+    'catalogs',
     'reports', 'settings', 'farmer-registration', 'livestock-registration', 'livestock-dashboard',
     'crop-registration', 'finance-loan-applications', 'finance-partner-banks', 'customize-bank-names'];
 
+  var VALID_ROLES = ['farmer', 'bank', 'admin', 'super'];
+
   function getRole() {
-    return localStorage.getItem(STORAGE_ROLE) || '';
+    var r = (localStorage.getItem(STORAGE_ROLE) || '').trim().toLowerCase();
+    if (VALID_ROLES.indexOf(r) === -1) return '';
+    return r;
   }
 
   function setRole(role) {
@@ -43,6 +48,35 @@
 
   var role = getRole();
   var user = localStorage.getItem(STORAGE_USER) || 'User';
+
+  // Ensure "Catalogs" exists in every sidebar (admin/super only).
+  (function ensureCatalogsNavItem() {
+    var existing = document.querySelector('.sidebar-nav a[href="catalogs.html"]');
+    if (existing) return;
+
+    var navUl = document.querySelector('.sidebar-nav ul');
+    if (!navUl) return;
+
+    var insertAfterLi = null;
+    var di = document.querySelector('.sidebar-nav a[href="data-integration-hub.html"]');
+    if (di && di.closest) insertAfterLi = di.closest('li');
+    if (!insertAfterLi) {
+      var fp = document.querySelector('.sidebar-nav a[href="finance-partner-banks.html"]');
+      if (fp && fp.closest) insertAfterLi = fp.closest('li');
+    }
+    if (!insertAfterLi) {
+      var fp2 = document.querySelector('.sidebar-nav a[href="finance-portal.html"]');
+      if (fp2 && fp2.closest) insertAfterLi = fp2.closest('li');
+    }
+
+    var li = document.createElement('li');
+    li.setAttribute('data-roles', 'admin super');
+    li.innerHTML =
+      '<a href="catalogs.html"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h10v2H4z"/></svg></span>Catalogs<span class="nav-chevron"><svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg></span></a>';
+
+    if (insertAfterLi && insertAfterLi.after) insertAfterLi.after(li);
+    else navUl.appendChild(li);
+  })();
 
   /* Filter sidebar: show only items whose data-roles includes current role */
   document.querySelectorAll('.sidebar-nav li[data-roles]').forEach(function (li) {

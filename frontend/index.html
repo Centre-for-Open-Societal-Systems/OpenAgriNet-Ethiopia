@@ -160,7 +160,7 @@
         var password = document.getElementById('login-password').value;
         var role = document.querySelector('input[name=role]:checked').value;
         var submitBtn = form.querySelector('button[type=submit]');
-        var apiBase = window.OAN_API_BASE || 'http://localhost:5000';
+        var apiBase = window.OAN_API_BASE || 'http://localhost:5001';
 
         if (!identifier || !password) {
           if (!identifier && !password) {

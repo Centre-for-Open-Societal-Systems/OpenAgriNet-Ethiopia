@@ -61,7 +61,7 @@ FROM app_configuration
 WHERE config_group = 'masterdata';
 
 -- Default source base URLs (insert-if-not-exists)
-INSERT INTO app_configuration (config_group, config_key, config_value, description, is_active)
+INSERT INTO app_configuration (config_group, config_key, config_value, description)
 VALUES
   ('masterdata', 'ckan_base_url', 'https://data.moa.gov.et', 'CKAN API base URL'),
   ('masterdata', 'ethioseed_base_url', 'https://ethioseed.moa.gov.et', 'Ethiopian Seed Catalog base URL'),
