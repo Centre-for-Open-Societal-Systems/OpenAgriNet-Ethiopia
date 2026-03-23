@@ -104,14 +104,26 @@
     userEl.textContent = user + ' · ' + (role === 'farmer' ? 'Farmer' : role === 'bank' ? 'Bank User' : role === 'admin' ? 'Admin User' : 'Super User');
   }
 
-  /* Logout */
+  /* Logout
+   * Always go to index.html (same directory, absolute URL). Do NOT use logout.html as the only
+   * target: many dev servers / SPA fallbacks serve dashboard.html for unknown paths, so /logout.html
+   * can look like "nothing happened". index.html is the real login shell; keycloak-login.js ends SSO.
+   */
   var logoutEl = document.getElementById('sidebar-logout');
   if (logoutEl) {
     logoutEl.addEventListener('click', function (e) {
       e.preventDefault();
       localStorage.removeItem(STORAGE_ROLE);
       localStorage.removeItem(STORAGE_USER);
-      window.location.href = 'index.html';
+      localStorage.removeItem('oan-token');
+      localStorage.removeItem('oan-email');
+      localStorage.removeItem('oan-mobile');
+      sessionStorage.removeItem('oan-intended-role');
+      sessionStorage.setItem('oan-want-fresh-login', '1');
+      sessionStorage.setItem('oan-app-logged-out', '1');
+      var loginUrl = new URL('index.html', window.location.href);
+      loginUrl.searchParams.set('oan_logout', '1');
+      window.location.replace(loginUrl.href);
     });
   }
 

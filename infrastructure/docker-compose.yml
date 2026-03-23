@@ -15,7 +15,8 @@ services:
       - ../backend/sql/create_tables.sql:/docker-entrypoint-initdb.d/01-create_tables.sql:ro
 
   keycloak:
-    image: quay.io/keycloak/keycloak:23.0
+    # 24.x pulls different layers — avoids broken snapshot errors some Docker Desktop installs hit on :23.0
+    image: quay.io/keycloak/keycloak:24.0.5
     container_name: openagrinet-keycloak
     entrypoint: ["sh", "/scripts/keycloak-dev-entrypoint.sh"]
     environment:
@@ -23,9 +24,11 @@ services:
       KEYCLOAK_ADMIN_PASSWORD: admin
       KC_HTTP_ENABLED: "true"
     ports:
-      - "8080:8080"
+      # Host 8090 avoids clashing with the static frontend on 8080
+      - "8090:8080"
     volumes:
       - ./keycloak-dev-entrypoint.sh:/scripts/keycloak-dev-entrypoint.sh:ro
+      - ./keycloak-init-openagrinet.sh:/scripts/keycloak-init-openagrinet.sh:ro
 
   backend:
     image: node:20
@@ -37,6 +40,11 @@ services:
     environment:
       PORT: "5000"
       DATABASE_URL: "postgresql://admin:admin@postgres:5432/openagrinet"
+      JWT_SECRET: "dev-secret"
+      KEYCLOAK_ENABLED: "true"
+      KEYCLOAK_URL: "http://keycloak:8080"
+      KEYCLOAK_REALM: "openagrinet"
+      KEYCLOAK_CLIENT_ID: "openagrinet-web"
     ports:
       - "5001:5000"
     depends_on:
