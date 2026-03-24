@@ -10,11 +10,16 @@
   var STORAGE_USER = 'oan-user';
   var APP_PAGES = ['dashboard', 'farmer-registry', 'land-registry', 'livestock-registry', 'crop-registry',
     'soil-registry', 'seed-registry', 'finance-portal', 'data-integration-hub', 'administration',
+    'catalogs',
     'reports', 'settings', 'farmer-registration', 'livestock-registration', 'livestock-dashboard',
     'crop-registration', 'finance-loan-applications', 'finance-partner-banks', 'customize-bank-names'];
 
+  var VALID_ROLES = ['farmer', 'bank', 'admin', 'super'];
+
   function getRole() {
-    return localStorage.getItem(STORAGE_ROLE) || '';
+    var r = (localStorage.getItem(STORAGE_ROLE) || '').trim().toLowerCase();
+    if (VALID_ROLES.indexOf(r) === -1) return '';
+    return r;
   }
 
   function setRole(role) {
@@ -44,6 +49,35 @@
   var role = getRole();
   var user = localStorage.getItem(STORAGE_USER) || 'User';
 
+  // Ensure "Catalogs" exists in every sidebar (admin/super only).
+  (function ensureCatalogsNavItem() {
+    var existing = document.querySelector('.sidebar-nav a[href="catalogs.html"]');
+    if (existing) return;
+
+    var navUl = document.querySelector('.sidebar-nav ul');
+    if (!navUl) return;
+
+    var insertAfterLi = null;
+    var di = document.querySelector('.sidebar-nav a[href="data-integration-hub.html"]');
+    if (di && di.closest) insertAfterLi = di.closest('li');
+    if (!insertAfterLi) {
+      var fp = document.querySelector('.sidebar-nav a[href="finance-partner-banks.html"]');
+      if (fp && fp.closest) insertAfterLi = fp.closest('li');
+    }
+    if (!insertAfterLi) {
+      var fp2 = document.querySelector('.sidebar-nav a[href="finance-portal.html"]');
+      if (fp2 && fp2.closest) insertAfterLi = fp2.closest('li');
+    }
+
+    var li = document.createElement('li');
+    li.setAttribute('data-roles', 'admin super');
+    li.innerHTML =
+      '<a href="catalogs.html"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h10v2H4z"/></svg></span>Catalogs<span class="nav-chevron"><svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg></span></a>';
+
+    if (insertAfterLi && insertAfterLi.after) insertAfterLi.after(li);
+    else navUl.appendChild(li);
+  })();
+
   /* Filter sidebar: show only items whose data-roles includes current role */
   document.querySelectorAll('.sidebar-nav li[data-roles]').forEach(function (li) {
     var roles = (li.getAttribute('data-roles') || '').trim().split(/\s+/);
@@ -70,14 +104,26 @@
     userEl.textContent = user + ' · ' + (role === 'farmer' ? 'Farmer' : role === 'bank' ? 'Bank User' : role === 'admin' ? 'Admin User' : 'Super User');
   }
 
-  /* Logout */
+  /* Logout
+   * Always go to index.html (same directory, absolute URL). Do NOT use logout.html as the only
+   * target: many dev servers / SPA fallbacks serve dashboard.html for unknown paths, so /logout.html
+   * can look like "nothing happened". index.html is the real login shell; keycloak-login.js ends SSO.
+   */
   var logoutEl = document.getElementById('sidebar-logout');
   if (logoutEl) {
     logoutEl.addEventListener('click', function (e) {
       e.preventDefault();
       localStorage.removeItem(STORAGE_ROLE);
       localStorage.removeItem(STORAGE_USER);
-      window.location.href = 'index.html';
+      localStorage.removeItem('oan-token');
+      localStorage.removeItem('oan-email');
+      localStorage.removeItem('oan-mobile');
+      sessionStorage.removeItem('oan-intended-role');
+      sessionStorage.setItem('oan-want-fresh-login', '1');
+      sessionStorage.setItem('oan-app-logged-out', '1');
+      var loginUrl = new URL('index.html', window.location.href);
+      loginUrl.searchParams.set('oan_logout', '1');
+      window.location.replace(loginUrl.href);
     });
   }
 
