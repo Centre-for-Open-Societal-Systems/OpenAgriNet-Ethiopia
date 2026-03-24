@@ -12,6 +12,21 @@
   <link rel="stylesheet" href="css/finance-portal.css">
 </head>
 <body class="finance-portal">
+  <!-- Run before Keycloak: ensure app session keys are gone when user clicked Log out (defense in depth). -->
+  <script>
+    (function () {
+      try {
+        var q = new URLSearchParams(window.location.search || '');
+        if (q.get('oan_logout') === '1' || sessionStorage.getItem('oan-app-logged-out') === '1') {
+          localStorage.removeItem('oan-role');
+          localStorage.removeItem('oan-user');
+          localStorage.removeItem('oan-token');
+          localStorage.removeItem('oan-email');
+          localStorage.removeItem('oan-mobile');
+        }
+      } catch (e) {}
+    })();
+  </script>
   <div class="fp-split">
     <aside class="fp-left">
       <div class="fp-hero-bg" role="img" aria-label="Agriculture in Ethiopia"></div>
@@ -48,6 +63,7 @@
       <main class="fp-main">
         <h2 class="fp-signin-heading">Sign in</h2>
         <p class="fp-signin-hint">Select your role to continue. You can switch roles after signing in.</p>
+        <p class="fp-signin-hint" style="margin-top:8px;font-size:0.9em;opacity:0.9;"><strong>Sign In</strong> opens the <strong>Keycloak</strong> login page (pick the role card first so it matches your Keycloak account). For <strong>local Postgres</strong> login only, hold <kbd>Alt</kbd> while clicking Sign In. Demo without password: hold <kbd>Alt</kbd> with empty fields.</p>
 
         <form id="login-form" class="fp-signin-form">
           <div class="fp-role-cards">
@@ -131,6 +147,11 @@
     </div>
   </div>
 
+  <!-- Keycloak OIDC (must load before keycloak-login.js) -->
+  <script src="https://cdn.jsdelivr.net/npm/keycloak-js@24.0.5/dist/keycloak.min.js"></script>
+  <script src="js/auth-config.js"></script>
+  <script src="js/keycloak-login.js"></script>
+
   <script>
     (function () {
       var form = document.getElementById('login-form');
@@ -160,7 +181,27 @@
         var password = document.getElementById('login-password').value;
         var role = document.querySelector('input[name=role]:checked').value;
         var submitBtn = form.querySelector('button[type=submit]');
-        var apiBase = window.OAN_API_BASE || 'http://localhost:5000';
+        var apiBase = window.OAN_API_BASE || 'http://localhost:5001';
+        var altLocal = e.altKey === true;
+
+        /* Browser Keycloak OIDC: redirect to Keycloak (unless Alt = force local API login) */
+        if (window.OAN_KEYCLOAK_ACTIVE && window.OAN_KEYCLOAK_SIGNIN && !altLocal) {
+          submitBtn.disabled = true;
+          window.OAN_KEYCLOAK_INIT.then(function () {
+            if (window.OAN_KEYCLOAK && window.OAN_KEYCLOAK.authenticated) {
+              // After logout, SSO may still be active — force Keycloak login screen instead of silent exchange.
+              if (sessionStorage.getItem('oan-want-fresh-login') === '1') {
+                return window.OAN_KEYCLOAK_SIGNIN(role);
+              }
+              return window.OAN_KEYCLOAK_FINISH_SESSION && window.OAN_KEYCLOAK_FINISH_SESSION();
+            }
+            window.OAN_KEYCLOAK_SIGNIN(role);
+          }).catch(function () {
+            submitBtn.disabled = false;
+            alert('Keycloak is not available. Hold Alt and try again for local login, or check ' + (window.OAN_KEYCLOAK_URL || 'Keycloak URL'));
+          });
+          return;
+        }
 
         if (!identifier || !password) {
           if (!identifier && !password) {
@@ -170,7 +211,7 @@
             window.location.href = 'dashboard.html';
             return;
           }
-          alert('For real login, enter both email/mobile and password.');
+          alert('For local login, enter both email/mobile and password (or use Sign In without Alt for Keycloak).');
           return;
         }
 
@@ -185,6 +226,7 @@
             if (result.ok && result.data.success) {
               localStorage.setItem('oan-user', result.data.user.username);
               localStorage.setItem('oan-role', result.data.user.role);
+          if (result.data.token) localStorage.setItem('oan-token', result.data.token);
               if (identifier.indexOf('@') !== -1) localStorage.setItem('oan-email', identifier);
               else if (/^[\d+\s\-()]+$/.test(identifier)) localStorage.setItem('oan-mobile', identifier);
               window.location.href = 'dashboard.html';
