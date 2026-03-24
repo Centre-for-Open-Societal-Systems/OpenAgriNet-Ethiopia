@@ -15,7 +15,7 @@ services:
       - ../backend/sql/create_tables.sql:/docker-entrypoint-initdb.d/01-create_tables.sql:ro
 
   keycloak:
-    image: quay.io/keycloak/keycloak:23.0
+    image: quay.io/keycloak/keycloak:24.0.5
     container_name: openagrinet-keycloak
     entrypoint: ["sh", "/scripts/keycloak-dev-entrypoint.sh"]
     environment:
