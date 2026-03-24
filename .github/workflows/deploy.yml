@@ -18,7 +18,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
            
-            cd /home/ec2-user/openAgriNet
+            cd /home/ec2-user/OpenAgriNet
             git fetch origin
             git reset --hard origin/staging
             sudo rm -rf /usr/share/nginx/html/openagri/*
