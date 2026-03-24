@@ -18,6 +18,8 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd /home/ec2-user/openagri
-            git pull origin staging
+            git fetch origin
+            git reset --hard origin/staging
+            sudo rm -rf /usr/share/nginx/html/openagri/*
             sudo cp -r frontend/* /usr/share/nginx/html/openagri/
             sudo systemctl reload nginx
