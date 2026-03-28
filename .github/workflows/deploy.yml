@@ -19,37 +19,46 @@ jobs:
           script: |
             set -e
 
+            # Navigate to the repository
             echo "[DEPLOY] Navigating to repo"
             cd /home/ec2-user/OpenAgriNet
 
+            # Pull latest staging branch
             echo "[DEPLOY] Pull latest code from staging"
             git fetch origin
             git reset --hard origin/staging
 
+            # Deploy frontend
             echo "[DEPLOY] Deploying frontend"
             sudo rm -rf /usr/share/nginx/html/openagri/* || true
             sudo cp -r frontend/. /usr/share/nginx/html/openagri/
             sudo systemctl reload nginx
             echo "[DEPLOY] Frontend deployed"
 
+            # Deploy backend + Keycloak + Postgres
             echo "[DEPLOY] Deploying backend + Keycloak + Postgres"
             cd infrastructure
 
-            sudo docker-compose down
-            sudo docker-compose up -d --build
+            # Replace /usr/local/bin/docker-compose with your actual path if different
+            DOCKER_COMPOSE_PATH=$(which docker-compose)
+
+            sudo $DOCKER_COMPOSE_PATH down
+            sudo $DOCKER_COMPOSE_PATH up -d --build
             echo "[DEPLOY] Docker containers started"
 
+            # Check container status
             echo "[DEPLOY] Checking container health"
-            sudo docker-compose ps
+            sudo $DOCKER_COMPOSE_PATH ps
 
+            # Health check for backend
             echo "[DEPLOY] Checking backend endpoint"
-            # Replace /health with your actual backend health endpoint if needed
             if ! curl -s http://localhost:5001/health | grep -q "ok"; then
               echo "Backend health check failed!"
               exit 1
             fi
             echo "[DEPLOY] Backend is healthy"
 
+            # Health check for Keycloak
             echo "[DEPLOY] Checking Keycloak"
             if ! curl -s http://localhost:8090/ | grep -q "Keycloak"; then
               echo "Keycloak health check failed!"
