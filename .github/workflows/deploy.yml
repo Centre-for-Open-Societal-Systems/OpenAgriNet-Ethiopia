@@ -31,6 +31,7 @@ jobs:
             echo "[DEPLOY] Deploying frontend"
             sudo rm -rf /usr/share/nginx/html/openagri/* || true
             sudo cp -r frontend/. /usr/share/nginx/html/openagri/
+            sudo sed -i "s|\${ec2_host}|$EC2_HOST|g" /usr/share/nginx/html/openagri/index.html
             sudo systemctl reload nginx
             echo "[DEPLOY] Frontend deployed"
 
