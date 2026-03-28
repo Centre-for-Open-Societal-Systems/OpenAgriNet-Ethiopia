@@ -1,23 +1,4 @@
-name: Deploy OpenAgriNet (Frontend + Backend)
-
-on:
-  push:
-    branches:
-      - staging
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            name: Deploy OpenAgriNet (Frontend + Backend + Keycloak)
+name: Deploy OpenAgriNet (Frontend + Backend + Infra)
 
 on:
   push:
@@ -49,11 +30,31 @@ jobs:
             sudo rm -rf /usr/share/nginx/html/openagri/* || true
             sudo cp -r frontend/. /usr/share/nginx/html/openagri/
             sudo systemctl reload nginx
+            echo "[DEPLOY] Frontend deployed"
 
             echo "[DEPLOY] Deploying backend + Keycloak + Postgres"
             cd infrastructure
 
             sudo docker compose down
             sudo docker compose up -d --build
+            echo "[DEPLOY] Docker containers started"
 
-            echo "[DEPLOY] Full stack deployed"
+            echo "[DEPLOY] Checking container health"
+            sudo docker compose ps
+
+            echo "[DEPLOY] Checking backend endpoint"
+            # Replace /health with your actual backend health endpoint if needed
+            if ! curl -s http://localhost:5001/health | grep -q "ok"; then
+              echo "Backend health check failed!"
+              exit 1
+            fi
+            echo "[DEPLOY] Backend is healthy"
+
+            echo "[DEPLOY] Checking Keycloak"
+            if ! curl -s http://localhost:8090/ | grep -q "Keycloak"; then
+              echo "Keycloak health check failed!"
+              exit 1
+            fi
+            echo "[DEPLOY] Keycloak is healthy"
+
+            echo "[DEPLOY] Full stack deployed successfully"
