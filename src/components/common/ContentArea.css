@@ -1,0 +1,18 @@
+/*
+ * ContentArea.css
+ * Standard layout for dashboard content areas across all roles.
+ * Matches Farmer Dashboard's original design.
+ */
+
+.content-area {
+  flex: 1;
+  padding: 32px;
+  overflow-y: auto;
+  animation: fadeInUp 0.8s ease-out 0.5s both;
+}
+
+@media (max-width: 768px) {
+  .content-area {
+    padding: 16px;
+  }
+}

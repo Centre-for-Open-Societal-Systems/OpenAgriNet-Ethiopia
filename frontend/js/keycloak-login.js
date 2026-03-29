@@ -3,7 +3,7 @@
  * Requires keycloak-js (see index.html) and backend POST /api/auth/keycloak-session.
  */
 (function () {
-  var KEYCLOAK_URL = window.OAN_KEYCLOAK_URL || 'http://localhost:8090';
+  var KEYCLOAK_URL = window.OAN_KEYCLOAK_URL || 'http://$EC2_HOST/auth';
   var KEYCLOAK_REALM = window.OAN_KEYCLOAK_REALM || 'openagrinet';
   var KEYCLOAK_CLIENT_ID = window.OAN_KEYCLOAK_CLIENT_ID || 'openagrinet-web';
   var USE_BROWSER_KEYCLOAK = window.OAN_KEYCLOAK_BROWSER !== false;
