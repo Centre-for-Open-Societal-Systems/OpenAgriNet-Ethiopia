@@ -1,0 +1,85 @@
+/*
+ * Registry / finance workflow styles (ART-2 components.css).
+ * Tokens live ONLY on .registry-workflow-shell so we never override :root
+ * (login + dashboard use src/index.css :root).
+ */
+@import '../../frontend/css/components.css';
+
+.registry-workflow-shell {
+  /* Base tokens (light — matches React dashboard) */
+  --sidebar-bg: #1e3f2e;
+  --sidebar-active-bg: #2e6a3f;
+  --sidebar-width: 280px;
+  --accent-orange: #e87d2b;
+  --accent-orange-hover: #d96e20;
+  --main-bg: transparent;
+  --card-bg: #ffffff;
+  --border-color: #e5e7eb;
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --text-muted: #6b7280;
+  --status-active: #22c55e;
+  --status-inactive: #ef4444;
+  --status-pending: #f59e0b;
+  --status-verified: #3b82f6;
+  --status-flagged: #a855f7;
+  --status-healthy: #22c55e;
+  --status-sick: #ef4444;
+  --status-quarantined: #f59e0b;
+  --vacc-up-to-date: #22c55e;
+  --vacc-overdue: #f59e0b;
+  --vacc-none: #6b7280;
+  --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --radius: 8px;
+  --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  width: 100%;
+  min-height: 320px;
+}
+
+.registry-workflow-shell .workflow-inner {
+  max-width: 100%;
+}
+
+/* Dark workflow (dashboard theme toggle) */
+.dashboard-layout.theme-dark .registry-workflow-shell,
+.registry-workflow-shell[data-theme='dark'] {
+  --main-bg: transparent;
+  --card-bg: #1f2937;
+  --border-color: #374151;
+  --text-primary: #f9fafb;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.registry-workflow-shell .breadcrumb a {
+  cursor: pointer;
+}
+
+/* Light: table chrome tuned for white cards (components.css assumes darker headers) */
+.registry-workflow-shell[data-theme='light'] .data-table th,
+.dashboard-layout.theme-light .registry-workflow-shell[data-theme='light'] .data-table th {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.registry-workflow-shell[data-theme='light'] .data-table tbody tr:hover,
+.dashboard-layout.theme-light .registry-workflow-shell[data-theme='light'] .data-table tbody tr:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.registry-workflow-shell[data-theme='light'] .btn-secondary:hover,
+.dashboard-layout.theme-light .registry-workflow-shell[data-theme='light'] .btn-secondary:hover {
+  background: #f3f4f6;
+}
+
+.registry-workflow-shell[data-theme='light'] .pagination-buttons button:hover:not(:disabled),
+.dashboard-layout.theme-light
+  .registry-workflow-shell[data-theme='light']
+  .pagination-buttons
+  button:hover:not(:disabled) {
+  background: #f3f4f6;
+}

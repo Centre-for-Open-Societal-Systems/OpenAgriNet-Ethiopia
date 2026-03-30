@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useParams, Navigate } from 'react-router-dom';
 import './SuperUserDashboard.css';
 import '../common/ContentArea.css';
+import '../common/SectionPlaceholder.css';
 import {
     Home, Users, User, MapPin, Bird, Sprout, Mountain, Shield, Download,
     Database, BarChart2, Settings, ChevronDown, Bell, Globe, HelpCircle,
@@ -12,8 +14,103 @@ import SuperUserSidebar from './SuperUserSidebar';
 import SuperUserStats from './SuperUserStats';
 import ATILogo from '../ATILogo';
 import TopHeader from '../common/TopHeader';
+import SidebarNavLink from '../common/SidebarNavLink';
+import SectionPlaceholder from '../common/SectionPlaceholder';
+import WorkflowRouter from '../workflow/WorkflowRouter';
+
+const SUPER_SECTIONS = new Set([
+  'overview',
+  'farmer-registry',
+  'livestock-registry',
+  'crop-registry',
+  'land-registry',
+  'soil-registry',
+  'seed-registry',
+  'finance-portal',
+  'catalogs',
+  'data-integration-hub',
+  'administration',
+  'system-health',
+  'tenant-management',
+  'global-insights',
+  'system-config',
+]);
+
+const SUPER_PLACEHOLDER = {
+  'farmer-registry': {
+    title: 'Farmer Registry',
+    description: 'Super-user visibility across all tenants and override workflows.',
+    breadcrumbs: ['Farmer Registry'],
+  },
+  'livestock-registry': {
+    title: 'Livestock Registry',
+    description: 'National livestock pipeline and integration status.',
+    breadcrumbs: ['Livestock Registry'],
+  },
+  'crop-registry': {
+    title: 'Crop Registry',
+    description: 'Crop data lineage, APIs, and bulk correction tools.',
+    breadcrumbs: ['Crop Registry'],
+  },
+  'finance-portal': {
+    title: 'Finance Portal',
+    description: 'System-wide finance integrations and consent policy.',
+    breadcrumbs: ['Finance Portal'],
+  },
+  'land-registry': {
+    title: 'Land Registry',
+    description: 'National land parcels.',
+    breadcrumbs: ['Land Registry'],
+  },
+  'soil-registry': {
+    title: 'Soil Registry',
+    description: 'Soil analytics.',
+    breadcrumbs: ['Soil Registry'],
+  },
+  'seed-registry': {
+    title: 'Seed Registry',
+    description: 'Seed traceability.',
+    breadcrumbs: ['Seed Registry'],
+  },
+  catalogs: {
+    title: 'Catalogs',
+    description: 'Master data catalogues.',
+    breadcrumbs: ['Catalogs'],
+  },
+  'data-integration-hub': {
+    title: 'Data Integration Hub',
+    description: 'Connectors, schedules, and ETL health for external datasets (EIAR, ePhyto, banks).',
+    breadcrumbs: ['Data Integration Hub'],
+  },
+  administration: {
+    title: 'Administration',
+    description: 'Realms, roles, tenants, and security policies.',
+    breadcrumbs: ['Administration'],
+  },
+  'system-health': {
+    title: 'System Health & Logs',
+    description: 'Uptime, latency, error budgets, and centralized logs.',
+    breadcrumbs: ['System Health & Logs'],
+  },
+  'tenant-management': {
+    title: 'Tenant Management',
+    description: 'Onboard banks and agencies, quotas, and feature entitlements.',
+    breadcrumbs: ['Tenant Management'],
+  },
+  'global-insights': {
+    title: 'Global Insights',
+    description: 'Cross-cutting analytics and executive dashboards.',
+    breadcrumbs: ['Global Insights'],
+  },
+  'system-config': {
+    title: 'System Config',
+    description: 'Environment settings, maintenance windows, and version matrix.',
+    breadcrumbs: ['System Config'],
+  },
+};
 
 const SuperUserDashboard = ({ userRole, onRoleChange, onLogout }) => {
+    const { section } = useParams();
     const [theme, setTheme] = useState('light');
     const [language, setLanguage] = useState('en');
     const [dateFilter, setDateFilter] = useState('Today');
@@ -112,6 +209,10 @@ const SuperUserDashboard = ({ userRole, onRoleChange, onLogout }) => {
         if (fromDate && toDate) setDataVersion(prev => prev + 1);
     };
 
+    if (!SUPER_SECTIONS.has(section)) {
+        return <Navigate to="/dashboard/overview" replace />;
+    }
+
     return (
         <div className={`dashboard-layout theme-${theme}`}>
             {/* Sidebar */}
@@ -124,11 +225,17 @@ const SuperUserDashboard = ({ userRole, onRoleChange, onLogout }) => {
                 </div>
 
                 <nav className="sidebar-nav">
-                    <div className="nav-item active"><Home size={20} /><span>Admin Control</span></div>
+                    <SidebarNavLink to="/dashboard/overview" end icon={<Home size={20} />}>
+                        Admin Control
+                    </SidebarNavLink>
                     <SuperUserSidebar />
                     <div className="sidebar-divider"></div>
-                    <div className="nav-item"><BarChart2 size={20} /><span>Global Insights</span></div>
-                    <div className="nav-item"><Settings size={20} /><span>System Config</span></div>
+                    <SidebarNavLink to="/dashboard/global-insights" icon={<BarChart2 size={20} />}>
+                        Global Insights
+                    </SidebarNavLink>
+                    <SidebarNavLink to="/dashboard/system-config" icon={<Settings size={20} />}>
+                        System Config
+                    </SidebarNavLink>
                 </nav>
             </aside>
 
@@ -144,6 +251,7 @@ const SuperUserDashboard = ({ userRole, onRoleChange, onLogout }) => {
                     onLogout={onLogout} 
                 />
 
+                {section === 'overview' ? (
                 <div className="content-area">
                     <div className="page-header">
                         <div className="page-header-left">
@@ -225,6 +333,20 @@ const SuperUserDashboard = ({ userRole, onRoleChange, onLogout }) => {
                         </div>
                     </div>
                 </div>
+                ) : (
+                <WorkflowRouter
+                    portalRole="Super User"
+                    section={section}
+                    theme={theme}
+                    fallback={
+                        <SectionPlaceholder
+                            title={SUPER_PLACEHOLDER[section].title}
+                            description={SUPER_PLACEHOLDER[section].description}
+                            breadcrumbs={SUPER_PLACEHOLDER[section].breadcrumbs}
+                        />
+                    }
+                />
+                )}
             </main>
         </div>
     );

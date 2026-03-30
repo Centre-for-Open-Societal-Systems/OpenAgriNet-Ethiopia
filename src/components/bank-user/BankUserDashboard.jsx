@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useParams, Navigate } from 'react-router-dom';
 import './BankUserDashboard.css';
 import '../common/ContentArea.css';
+import '../common/SectionPlaceholder.css';
 import {
     Home, Users, User, MapPin, Bird, Sprout, Mountain, Shield, Download,
     Database, BarChart2, Settings, ChevronDown, Bell, Globe, HelpCircle,
@@ -12,8 +14,55 @@ import BankUserSidebar from './BankUserSidebar';
 import BankUserStats from './BankUserStats';
 import ATILogo from '../ATILogo';
 import TopHeader from '../common/TopHeader';
+import SidebarNavLink from '../common/SidebarNavLink';
+import SectionPlaceholder from '../common/SectionPlaceholder';
+import WorkflowRouter from '../workflow/WorkflowRouter';
+
+const BANK_SECTIONS = new Set([
+  'overview',
+  'loan-applications',
+  'borrower-directory',
+  'risk-assessment',
+  'repayment-reports',
+  'financial-reports',
+  'bank-settings',
+]);
+
+const BANK_PLACEHOLDER = {
+  'loan-applications': {
+    title: 'Loan Applications',
+    description: 'Review, approve, and track agricultural loan applications from farmers and cooperatives.',
+    breadcrumbs: ['Loan Applications'],
+  },
+  'borrower-directory': {
+    title: 'Borrower Directory',
+    description: 'KYC-verified borrowers, exposure limits, and linked registry records.',
+    breadcrumbs: ['Borrower Directory'],
+  },
+  'risk-assessment': {
+    title: 'Risk Assessment',
+    description: 'Credit scores, collateral, and portfolio risk indicators.',
+    breadcrumbs: ['Risk Assessment'],
+  },
+  'repayment-reports': {
+    title: 'Repayment Reports',
+    description: 'Schedules, arrears, and repayment performance by product and region.',
+    breadcrumbs: ['Repayment Reports'],
+  },
+  'financial-reports': {
+    title: 'Financial Reports',
+    description: 'Disbursement, PAR, and regulatory reporting exports.',
+    breadcrumbs: ['Financial Reports'],
+  },
+  'bank-settings': {
+    title: 'Settings',
+    description: 'Bank user preferences, notifications, and workspace defaults.',
+    breadcrumbs: ['Settings'],
+  },
+};
 
 const BankUserDashboard = ({ userRole, onRoleChange, onLogout }) => {
+    const { section } = useParams();
     const [theme, setTheme] = useState('light');
     const [language, setLanguage] = useState('en');
     const [dateFilter, setDateFilter] = useState('Today');
@@ -112,6 +161,10 @@ const BankUserDashboard = ({ userRole, onRoleChange, onLogout }) => {
         if (fromDate && toDate) setDataVersion(prev => prev + 1);
     };
 
+    if (!BANK_SECTIONS.has(section)) {
+        return <Navigate to="/dashboard/overview" replace />;
+    }
+
     return (
         <div className={`dashboard-layout theme-${theme}`}>
             {/* Sidebar */}
@@ -129,23 +182,17 @@ const BankUserDashboard = ({ userRole, onRoleChange, onLogout }) => {
                 </div>
 
                 <nav className="sidebar-nav">
-                    <div className="nav-item active">
-                        <Home size={20} />
-                        <span>Dashboard</span>
-                    </div>
-
+                    <SidebarNavLink to="/dashboard/overview" end icon={<Home size={20} />}>
+                        Dashboard
+                    </SidebarNavLink>
                     <BankUserSidebar />
-
                     <div className="sidebar-divider"></div>
-
-                    <div className="nav-item">
-                        <BarChart2 size={20} />
-                        <span>Financial Reports</span>
-                    </div>
-                    <div className="nav-item">
-                        <Settings size={20} />
-                        <span>Settings</span>
-                    </div>
+                    <SidebarNavLink to="/dashboard/financial-reports" icon={<BarChart2 size={20} />}>
+                        Financial Reports
+                    </SidebarNavLink>
+                    <SidebarNavLink to="/dashboard/bank-settings" icon={<Settings size={20} />}>
+                        Settings
+                    </SidebarNavLink>
                 </nav>
             </aside>
 
@@ -161,6 +208,7 @@ const BankUserDashboard = ({ userRole, onRoleChange, onLogout }) => {
                     onLogout={onLogout} 
                 />
 
+                {section === 'overview' ? (
                 <div className="content-area">
                     <div className="page-header">
                         <div className="page-header-left">
@@ -242,6 +290,20 @@ const BankUserDashboard = ({ userRole, onRoleChange, onLogout }) => {
                         </div>
                     </div>
                 </div>
+                ) : (
+                <WorkflowRouter
+                    portalRole="Bank User"
+                    section={section}
+                    theme={theme}
+                    fallback={
+                        <SectionPlaceholder
+                            title={BANK_PLACEHOLDER[section].title}
+                            description={BANK_PLACEHOLDER[section].description}
+                            breadcrumbs={BANK_PLACEHOLDER[section].breadcrumbs}
+                        />
+                    }
+                />
+                )}
             </main>
         </div>
     );

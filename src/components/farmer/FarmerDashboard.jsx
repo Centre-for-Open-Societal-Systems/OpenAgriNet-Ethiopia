@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useParams, Navigate } from 'react-router-dom';
 import './FarmerDashboard.css';
 import '../common/ContentArea.css';
+import '../common/SectionPlaceholder.css';
 import {
     Home, Users, User, MapPin, Bird, Sprout, Mountain, Shield, Download,
     Database, BarChart2, Settings, ChevronDown, Bell, Globe, HelpCircle, Info,
@@ -12,8 +14,44 @@ import FarmerSidebar from './FarmerSidebar';
 import FarmerStats from './FarmerStats';
 import ATILogo from '../ATILogo';
 import TopHeader from '../common/TopHeader';
+import SidebarNavLink from '../common/SidebarNavLink';
+import SectionPlaceholder from '../common/SectionPlaceholder';
+import WorkflowRouter from '../workflow/WorkflowRouter';
+
+const FARMER_SECTIONS = new Set([
+  'overview',
+  'farmer-registry',
+  'livestock-registry',
+  'crop-registry',
+  'finance-portal',
+]);
+
+const FARMER_PLACEHOLDER = {
+  'farmer-registry': {
+    title: 'Farmer Registry',
+    description:
+      'Browse and manage farmer records, cooperative links, and verification status. Wire this view to your registry API when ready.',
+    breadcrumbs: ['Farmer Registry'],
+  },
+  'livestock-registry': {
+    title: 'Livestock Registry',
+    description: 'Track animals, batches, and health events. Connect livestock master data and movements here.',
+    breadcrumbs: ['Livestock Registry'],
+  },
+  'crop-registry': {
+    title: 'Crop Registry',
+    description: 'Plots, seasons, and production data. Hook up crop and seed catalog endpoints as they become available.',
+    breadcrumbs: ['Crop Registry'],
+  },
+  'finance-portal': {
+    title: 'Finance Portal',
+    description: 'Loan applications, disbursements, and repayment summaries for your farm operations.',
+    breadcrumbs: ['Finance Portal'],
+  },
+};
 
 const FarmerDashboard = ({ userRole, onRoleChange, onLogout }) => {
+    const { section } = useParams();
     const [theme, setTheme] = useState('light');
     const [language, setLanguage] = useState('en');
     const [dateFilter, setDateFilter] = useState('Today');
@@ -431,6 +469,9 @@ const FarmerDashboard = ({ userRole, onRoleChange, onLogout }) => {
         return pages;
     };
 
+    if (!FARMER_SECTIONS.has(section)) {
+        return <Navigate to="/dashboard/overview" replace />;
+    }
 
     return (
         <div className={`dashboard-layout theme-${theme}`}>
@@ -449,14 +490,10 @@ const FarmerDashboard = ({ userRole, onRoleChange, onLogout }) => {
                 </div>
 
                 <nav className="sidebar-nav">
-                    <div className="nav-item active">
-                        <Home size={20} />
-                        <span>Dashboard</span>
-                    </div>
-
+                    <SidebarNavLink to="/dashboard/overview" end icon={<Home size={20} />}>
+                        Dashboard
+                    </SidebarNavLink>
                     <FarmerSidebar />
-
-
                 </nav>
             </aside>
 
@@ -472,7 +509,7 @@ const FarmerDashboard = ({ userRole, onRoleChange, onLogout }) => {
                     onLogout={onLogout} 
                 />
 
-                {/* Content Area */}
+                {section === 'overview' ? (
                 <div className="content-area">
                     <div className="page-header">
                         <div className="page-header-left">
@@ -746,6 +783,20 @@ const FarmerDashboard = ({ userRole, onRoleChange, onLogout }) => {
                         </div>
                     </div>
                 </div>
+                ) : (
+                <WorkflowRouter
+                    portalRole="Farmer"
+                    section={section}
+                    theme={theme}
+                    fallback={
+                        <SectionPlaceholder
+                            title={FARMER_PLACEHOLDER[section].title}
+                            description={FARMER_PLACEHOLDER[section].description}
+                            breadcrumbs={FARMER_PLACEHOLDER[section].breadcrumbs}
+                        />
+                    }
+                />
+                )}
             </main>
 
             <div className="help-widget-container" ref={helpWindowRef}>

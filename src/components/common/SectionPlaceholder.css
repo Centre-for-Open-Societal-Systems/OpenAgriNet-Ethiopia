@@ -1,0 +1,92 @@
+.section-placeholder-wrap {
+  padding-top: 8px;
+}
+
+.section-placeholder-breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 20px;
+  font-size: 13px;
+}
+
+.section-placeholder-crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #2a7338;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.section-placeholder-crumb:hover {
+  text-decoration: underline;
+}
+
+.section-placeholder-crumb.muted {
+  color: #6b7280;
+  pointer-events: none;
+}
+
+.section-placeholder-sep {
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
+.section-placeholder-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 28px 32px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  max-width: 720px;
+}
+
+.dashboard-layout.theme-dark .section-placeholder-card {
+  background: #1f2937;
+  border-color: #374151;
+}
+
+.dashboard-layout.theme-dark .section-placeholder-title {
+  color: #f9fafb;
+}
+
+.dashboard-layout.theme-dark .section-placeholder-desc {
+  color: #9ca3af;
+}
+
+.dashboard-layout.theme-dark .section-placeholder-crumb {
+  color: #4ade80;
+}
+
+.section-placeholder-title {
+  margin: 0 0 12px;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.section-placeholder-desc {
+  margin: 0 0 20px;
+  line-height: 1.6;
+  color: #4b5563;
+  font-size: 15px;
+}
+
+.section-placeholder-back {
+  display: inline-block;
+  font-weight: 500;
+  color: #2a7338;
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.section-placeholder-back:hover {
+  text-decoration: underline;
+}
+
+.sidebar-nav a.nav-item {
+  text-decoration: none;
+  color: inherit;
+}
