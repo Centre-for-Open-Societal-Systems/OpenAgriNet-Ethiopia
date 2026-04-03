@@ -21,12 +21,39 @@ if [ -z "$CID" ]; then
     -s publicClient=true \
     -s directAccessGrantsEnabled=true \
     -s standardFlowEnabled=true \
-    -s 'redirectUris=["http://localhost:8080/*"]' \
-    -s 'webOrigins=["http://localhost:8080"]' \
+    -s 'redirectUris=["http://localhost:5173/*","http://localhost:8080/*"]' \
+    -s 'webOrigins=["http://localhost:5173","http://localhost:8080"]' \
     && echo "[Keycloak init] Created client openagrinet-web"
 else
-  echo "[Keycloak init] Client openagrinet-web exists — enabling direct access grants"
-  $KC update "clients/$CID" -r openagrinet -s directAccessGrantsEnabled=true -s publicClient=true 2>/dev/null || true
+  echo "[Keycloak init] Client openagrinet-web exists — enabling direct access grants and Vite redirect URIs"
+  $KC update "clients/$CID" -r openagrinet \
+    -s directAccessGrantsEnabled=true \
+    -s publicClient=true \
+    -s 'redirectUris=["http://localhost:5173/*","http://localhost:8080/*"]' \
+    -s 'webOrigins=["http://localhost:5173","http://localhost:8080"]' \
+    2>/dev/null || true
+fi
+
+# Legacy / cached SPA bundles may still request this client id — mirror openagrinet-web.
+FRONT_CID=$($KC get clients -r openagrinet -q clientId=openagrinet-frontend --fields id --format csv --noquotes 2>/dev/null | head -1)
+if [ -z "$FRONT_CID" ]; then
+  $KC create clients -r openagrinet \
+    -s clientId=openagrinet-frontend \
+    -s name=openagrinet-frontend \
+    -s publicClient=true \
+    -s directAccessGrantsEnabled=true \
+    -s standardFlowEnabled=true \
+    -s 'redirectUris=["http://localhost:5173/*","http://localhost:8080/*"]' \
+    -s 'webOrigins=["http://localhost:5173","http://localhost:8080"]' \
+    && echo "[Keycloak init] Created client openagrinet-frontend (alias for Vite / old builds)"
+else
+  echo "[Keycloak init] Client openagrinet-frontend exists — refreshing redirect URIs"
+  $KC update "clients/$FRONT_CID" -r openagrinet \
+    -s directAccessGrantsEnabled=true \
+    -s publicClient=true \
+    -s 'redirectUris=["http://localhost:5173/*","http://localhost:8080/*"]' \
+    -s 'webOrigins=["http://localhost:5173","http://localhost:8080"]' \
+    2>/dev/null || true
 fi
 
 for R in super admin bank farmer; do
