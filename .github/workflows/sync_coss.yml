@@ -13,6 +13,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Required to fetch all history for mirroring
+          # If true, checkout persists GITHUB_TOKEN for all github.com HTTPS ops; git push to
+          # another repo would use that token (wrong repo scope) → "Repository not found".
+          persist-credentials: false
 
       - name: Push to COSS Repository
         env:
