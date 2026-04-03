@@ -13,24 +13,68 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Required to fetch all history for mirroring
+          # If true, checkout persists GITHUB_TOKEN for all github.com HTTPS ops; git push to
+          # another repo would use that token (wrong repo scope) → "Repository not found".
+          persist-credentials: false
 
       - name: Push to COSS Repository
         env:
-          # Replace these with your actual destination details
           DEST_ORG: "Centre-for-Open-Societal-Systems"
           DEST_REPO: "OpenAgriNet-Ethiopia"
-          # Store your PAT in GitHub Secrets as DEST_REPO_TOKEN5
+          # PAT in repo Settings → Secrets and variables → Actions → DEST_REPO_TOKEN
           SYNC_TOKEN: ${{ secrets.DEST_REPO_TOKEN }}
         run: |
-          # Configure Git
+          set -euo pipefail
           git config --global user.name "GitHub Action Bot"
           git config --global user.email "action@github.com"
-          
-          # Add destination as a remote and push
-          git remote add destination "https://x-access-token:${SYNC_TOKEN}@github.com/${DEST_ORG}/${DEST_REPO}.git"
-          
-          # Push the master branch specifically
+
+          if [ -z "${SYNC_TOKEN}" ]; then
+            echo "::error::DEST_REPO_TOKEN secret is empty or not set."
+            exit 1
+          fi
+
+          # Verify token and repo access before git push (clearer than generic "repository not found")
+          API_URL="https://api.github.com/repos/${DEST_ORG}/${DEST_REPO}"
+          HTTP_CODE=$(curl -sS -o /tmp/gh_repo.json -w "%{http_code}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${SYNC_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "${API_URL}")
+
+          case "${HTTP_CODE}" in
+            200)
+              echo "GitHub API: repository exists and token can read it."
+              ;;
+            401)
+              echo "::error::DEST_REPO_TOKEN rejected (401). Regenerate the PAT and update the secret."
+              exit 1
+              ;;
+            403)
+              echo "::error::Token forbidden (403). For orgs with SAML SSO, authorize this PAT for the org. Fine-grained tokens need Contents: Read and write on this repository."
+              exit 1
+              ;;
+            404)
+              echo "::error::Repo GET returned 404. Either the repo does not exist at https://github.com/${DEST_ORG}/${DEST_REPO}, the name/org is wrong, or the token cannot see it (private repo + no access). Create the repo under the org or fix DEST_ORG/DEST_REPO."
+              if [ -s /tmp/gh_repo.json ]; then
+                head -c 500 /tmp/gh_repo.json || true
+                echo
+              fi
+              exit 1
+              ;;
+            *)
+              echo "::error::Unexpected GitHub API response: HTTP ${HTTP_CODE}"
+              head -c 500 /tmp/gh_repo.json || true
+              echo
+              exit 1
+              ;;
+          esac
+
+          # Avoid embedding the PAT in the remote URL (special characters in PATs break URLs).
+          git config --global credential.helper store
+          printf 'https://x-access-token:%s@github.com\n' "${SYNC_TOKEN}" > ~/.git-credentials
+          chmod 600 ~/.git-credentials
+
+          git remote add destination "https://github.com/${DEST_ORG}/${DEST_REPO}.git"
+
           git push destination master --force
-          
-          # Optional: Push all tags as well
           git push destination --tags --force
