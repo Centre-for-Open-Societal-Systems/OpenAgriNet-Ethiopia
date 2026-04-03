@@ -19,14 +19,22 @@ jobs:
           # Replace these with your actual destination details
           DEST_ORG: "Centre-for-Open-Societal-Systems"
           DEST_REPO: "OpenAgriNet-Ethiopia"
-          # Store your PAT in GitHub Secrets as DEST_REPO_TOKEN5
+          # PAT in repo Settings → Secrets and variables → Actions → DEST_REPO_TOKEN
           SYNC_TOKEN: ${{ secrets.DEST_REPO_TOKEN }}
         run: |
           # Configure Git
           git config --global user.name "GitHub Action Bot"
           git config --global user.email "action@github.com"
+
+          # GitHub returns "repository not found" for bad/missing auth (404) — same as a missing repo.
+          if [ -z "${SYNC_TOKEN}" ]; then
+            echo "::error::DEST_REPO_TOKEN secret is empty or not set. Add a PAT with push access to ${DEST_ORG}/${DEST_REPO}."
+            exit 1
+          fi
           
           # Add destination as a remote and push
+          # PAT: classic with repo scope, or fine-grained with Contents: Read and write on this repo.
+          # If the org uses SAML SSO, authorize the PAT for the org (GitHub → Settings → SSH and GPG keys → SSO).
           git remote add destination "https://x-access-token:${SYNC_TOKEN}@github.com/${DEST_ORG}/${DEST_REPO}.git"
           
           # Push the master branch specifically
