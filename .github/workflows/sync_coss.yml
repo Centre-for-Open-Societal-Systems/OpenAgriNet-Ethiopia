@@ -1,0 +1,36 @@
+name: Sync to COSS
+
+on:
+  push:
+    branches:
+      - master  # Triggers on any commit or merge to master
+
+jobs:
+  mirror_repo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Required to fetch all history for mirroring
+
+      - name: Push to COSS Repository
+        env:
+          # Replace these with your actual destination details
+          DEST_ORG: "Centre-for-Open-Societal-Systems"
+          DEST_REPO: "OpenAgriNet-Ethiopia"
+          # Store your PAT in GitHub Secrets as DEST_REPO_TOKEN5
+          SYNC_TOKEN: ${{ secrets.DEST_REPO_TOKEN }}
+        run: |
+          # Configure Git
+          git config --global user.name "GitHub Action Bot"
+          git config --global user.email "action@github.com"
+          
+          # Add destination as a remote and push
+          git remote add destination "https://x-access-token:${SYNC_TOKEN}@github.com/${DEST_ORG}/${DEST_REPO}.git"
+          
+          # Push the master branch specifically
+          git push destination master --force
+          
+          # Optional: Push all tags as well
+          git push destination --tags --force
