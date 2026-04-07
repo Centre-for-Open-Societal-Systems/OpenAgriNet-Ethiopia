@@ -12,4 +12,26 @@ const keycloak = new Keycloak({
   clientId,
 });
 
+/** Default init options — use everywhere that must wait for Keycloak (avoids API calls before init finishes). */
+export const KEYCLOAK_INIT_OPTIONS = Object.freeze({
+  onLoad: "check-sso",
+  pkceMethod: "S256",
+});
+
+/**
+ * keycloak-js throws if init() runs twice. React StrictMode mounts effects twice in dev,
+ * so we reuse a single init promise for the app lifetime.
+ */
+let initPromise = null;
+
+export function initKeycloak(options) {
+  const opts = { ...KEYCLOAK_INIT_OPTIONS, ...options };
+  if (initPromise) return initPromise;
+  initPromise = keycloak.init(opts).catch((err) => {
+    initPromise = null;
+    throw err;
+  });
+  return initPromise;
+}
+
 export default keycloak;

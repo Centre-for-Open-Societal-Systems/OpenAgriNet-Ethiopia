@@ -23,6 +23,6 @@ if [ "$KC_READY" = "1" ] && [ -f /scripts/keycloak-init-openagrinet.sh ]; then
 fi
 
 echo "Keycloak admin console (map host port in docker-compose): admin / admin"
-echo "OpenAgriNet realm users: admin/admin (role admin), superuser/superuser (role super)"
+echo "OpenAgriNet realm users: admin/admin, admin1/admin1 (admin), superuser/superuser (super)"
 
 wait $KC_PID

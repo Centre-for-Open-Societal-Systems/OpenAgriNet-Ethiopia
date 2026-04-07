@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import RegistryWorkflowShell from './RegistryWorkflowShell';
-import CatalogsView from './CatalogsView';
+import MasterCatalogView from './MasterCatalogView';
 import {
   SAMPLE_FARMERS,
   SAMPLE_LIVESTOCK,
@@ -1174,9 +1174,40 @@ function pickBody({ portalRole, section, pathname, tab, overviewPath }) {
     );
   }
 
-  if (section === 'catalogs') {
+  const masterViews = {
+    'crop-master': {
+      catalogue: 'crop_catalogue',
+      title: 'Crop Master',
+      description: 'National crop and registered seed variety catalogue for OpenAgriNet.',
+      sourceLabel: 'EthioSeed (ethioseed.moa.gov.et)',
+    },
+    'livestock-master': {
+      catalogue: 'livestock_catalogue',
+      title: 'Livestock Master',
+      description: 'Livestock reference species and harmonized program metadata.',
+      sourceLabel: 'National Agricultural Data Hub (datahub.moa.gov.et)',
+    },
+    'location-master': {
+      catalogue: 'location_catalogue',
+      title: 'Location Master',
+      description: 'Administrative boundaries and location codes used across registries.',
+      sourceLabel:
+        'National Agricultural Data Hub (datahub.moa.gov.et), with MOA data portal and NSDI WFS fallbacks when needed',
+    },
+  };
+
+  const master = masterViews[section];
+  if (master) {
     if (portalRole !== 'Admin' && portalRole !== 'Super User') return null;
-    return <CatalogsView overviewPath={overviewPath} />;
+    return (
+      <MasterCatalogView
+        catalogue={master.catalogue}
+        title={master.title}
+        description={master.description}
+        sourceLabel={master.sourceLabel}
+        overviewPath={overviewPath}
+      />
+    );
   }
 
   return null;
@@ -1184,7 +1215,14 @@ function pickBody({ portalRole, section, pathname, tab, overviewPath }) {
 
 export function workflowHandlesSection(portalRole, section) {
   if (!portalRole || !section) return false;
-  const adminOnly = new Set(['land-registry', 'soil-registry', 'seed-registry', 'catalogs']);
+  const adminOnly = new Set([
+    'land-registry',
+    'soil-registry',
+    'seed-registry',
+    'crop-master',
+    'location-master',
+    'livestock-master',
+  ]);
   if (adminOnly.has(section)) {
     return portalRole === 'Admin' || portalRole === 'Super User';
   }

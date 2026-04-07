@@ -1,24 +1,17 @@
-const crypto = require('crypto');
 const http = require('http');
 const https = require('https');
 const { pool } = require('../db/pool');
+const { sha256Hex, stableStringify } = require('./rowHash');
 
 const DEFAULT_CKAN_BASE_URL = 'https://data.moa.gov.et';
+const DEFAULT_DATAHUB_BASE_URL = 'https://datahub.moa.gov.et';
 const DEFAULT_ETHIOSEED_BASE_URL = 'https://ethioseed.moa.gov.et';
-const DEFAULT_ETHIONSDI_WFS_BASE_URL = 'http://www.ethionsdi.gov.et/geoserver/wfs';
+const DEFAULT_ETHIONSDI_WFS_BASE_URL = 'https://ethionsdi.gov.et/geoserver/wfs';
 
-function sha256Hex(input) {
-  return crypto.createHash('sha256').update(String(input)).digest('hex');
-}
+const DEFAULT_HTTP_TIMEOUT_MS = Number(process.env.MASTERDATA_HTTP_TIMEOUT_MS) || 30000;
 
-function stableStringify(value) {
-  if (value === null || value === undefined) return JSON.stringify(value);
-  if (typeof value !== 'object') return JSON.stringify(value);
-  if (Array.isArray(value)) return '[' + value.map(stableStringify).join(',') + ']';
-
-  const keys = Object.keys(value).sort();
-  return '{' + keys.map((k) => JSON.stringify(k) + ':' + stableStringify(value[k])).join(',') + '}';
-}
+/** Current NSDI layer for national woreda boundaries (eth_adm2 was retired on the service). */
+const WFS_TYPENAME_WOREDA = 'geonode:eth_woreda_2013';
 
 function getUrlProtocol(url) {
   if (url.startsWith('https://')) return 'https:';
@@ -36,12 +29,21 @@ async function getMasterdataSourceBaseUrls() {
 
   return {
     ckanBaseUrl: map.get('ckan_base_url') || DEFAULT_CKAN_BASE_URL,
+    datahubBaseUrl: map.get('datahub_base_url') || DEFAULT_DATAHUB_BASE_URL,
     ethioseedBaseUrl: map.get('ethioseed_base_url') || DEFAULT_ETHIOSEED_BASE_URL,
     ethionsdiWfsBaseUrl: map.get('ethionsdi_wfs_base_url') || DEFAULT_ETHIONSDI_WFS_BASE_URL,
   };
 }
 
-async function httpGet(url, { headers = {} } = {}) {
+function effectiveHttpTimeoutMs(url, explicit) {
+  if (explicit != null) return explicit;
+  if (String(url).includes('datahub.moa.gov.et')) {
+    return Math.min(12000, DEFAULT_HTTP_TIMEOUT_MS);
+  }
+  return DEFAULT_HTTP_TIMEOUT_MS;
+}
+
+async function httpGet(url, { headers = {}, timeoutMs, maxBodyBytes = 0 } = {}) {
   const protocol = getUrlProtocol(url);
   const lib = protocol === 'https:' ? https : http;
 
@@ -55,29 +57,85 @@ async function httpGet(url, { headers = {} } = {}) {
     options.rejectUnauthorized = false;
   }
 
+  const waitMs = effectiveHttpTimeoutMs(url, timeoutMs);
+
   return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (err, val) => {
+      if (settled) return;
+      settled = true;
+      if (err) reject(err);
+      else resolve(val);
+    };
+
     const req = lib.request(url, options, (res) => {
       let body = '';
       res.setEncoding('utf8');
       res.on('data', (chunk) => {
         body += chunk;
+        if (maxBodyBytes > 0 && Buffer.byteLength(body, 'utf8') > maxBodyBytes) {
+          req.destroy();
+          finish(new Error(`GET response exceeded ${maxBodyBytes} bytes`));
+        }
       });
       res.on('end', () => {
+        if (settled) return;
         const status = res.statusCode || 0;
         if (status < 200 || status >= 300) {
-          return reject(new Error(`GET ${url} failed with status ${status}: ${body.slice(0, 200)}`));
+          return finish(new Error(`GET ${url} failed with status ${status}: ${body.slice(0, 200)}`));
         }
-        resolve(body);
+        finish(null, body);
       });
     });
-    req.on('error', reject);
+    req.setTimeout(waitMs, () => {
+      req.destroy();
+      finish(new Error(`GET ${url} timed out after ${waitMs}ms`));
+    });
+    req.on('error', (e) => finish(e));
     req.end();
   });
 }
 
-async function fetchJson(url) {
-  const text = await httpGet(url, { headers: { Accept: 'application/json' } });
+async function fetchJson(url, { timeoutMs, maxBodyBytes } = {}) {
+  const text = await httpGet(url, {
+    headers: { Accept: 'application/json' },
+    timeoutMs,
+    maxBodyBytes,
+  });
+  const trimmed = text.trim();
+  if (trimmed.startsWith('<')) {
+    throw new Error(`Expected JSON but received XML/HTML from ${url.slice(0, 80)}`);
+  }
   return JSON.parse(text);
+}
+
+function normalizeUpstreamLocationWfsUrl(url) {
+  if (!url || typeof url !== 'string') return url;
+  try {
+    const u = new URL(url);
+    const h = u.hostname.toLowerCase();
+    if (h === 'www.ethionsdi.gov.et' || h === 'ethionsdi.gov.et') {
+      u.protocol = 'https:';
+      u.hostname = 'ethionsdi.gov.et';
+    }
+    let s = u.toString();
+    s = s.replace(/typename=geonode%3Aeth_adm2/gi, `typename=${encodeURIComponent(WFS_TYPENAME_WOREDA)}`);
+    s = s.replace(/typename=geonode:eth_adm2/gi, `typename=${encodeURIComponent(WFS_TYPENAME_WOREDA)}`);
+    return s;
+  } catch {
+    return url
+      .replace(/^http:\/\/www\.ethionsdi\.gov\.et/i, 'https://ethionsdi.gov.et')
+      .replace(/^http:\/\/ethionsdi\.gov\.et/i, 'https://ethionsdi.gov.et');
+  }
+}
+
+function buildNationalWoredaWfsGeojsonUrl(wfsBaseUrl) {
+  const base = String(wfsBaseUrl || DEFAULT_ETHIONSDI_WFS_BASE_URL)
+    .replace(/^http:\/\/www\.ethionsdi\.gov\.et/i, 'https://ethionsdi.gov.et')
+    .replace(/^http:\/\/ethionsdi\.gov\.et/i, 'https://ethionsdi.gov.et')
+    .replace(/\/+$/, '');
+  const encodedType = encodeURIComponent(WFS_TYPENAME_WOREDA);
+  return `${base}?srsName=EPSG%3A4326&typename=${encodedType}&outputFormat=json&version=1.0.0&service=WFS&request=GetFeature`;
 }
 
 function normalizeJsonArray(data) {
@@ -112,13 +170,9 @@ async function syncCropSeedVarieties() {
   const sourceSystem = 'ethioseed.moa.gov.et';
   const sourceCatalogue = 'crop_catalogue';
 
-  const { ckanBaseUrl, ethioseedBaseUrl } = await getMasterdataSourceBaseUrls();
-  const CROP_CROPS_URL_FALLBACK = `${ethioseedBaseUrl}/api/crops-catalog`;
-  const CROP_VARIETIES_URL_FALLBACK = `${ethioseedBaseUrl}/api/varieties-catalog`;
-
-  const cropUrls = await getCropSeedUrlsFromCkan(ckanBaseUrl).catch(() => null);
-  const varietiesUrl = cropUrls?.varietiesUrl || CROP_VARIETIES_URL_FALLBACK;
-  const cropsUrl = cropUrls?.cropsUrl || CROP_CROPS_URL_FALLBACK;
+  const { ethioseedBaseUrl } = await getMasterdataSourceBaseUrls();
+  const cropsUrl = `${String(ethioseedBaseUrl).replace(/\/+$/, '')}/api/crops-catalog`;
+  const varietiesUrl = `${String(ethioseedBaseUrl).replace(/\/+$/, '')}/api/varieties-catalog`;
 
   const [cropsData, varietiesData] = await Promise.all([fetchJson(cropsUrl), fetchJson(varietiesUrl)]);
   const crops = normalizeJsonArray(cropsData);
@@ -223,50 +277,71 @@ async function syncCropSeedVarieties() {
   return { insertedCount, updatedCount };
 }
 
-async function getCropSeedUrlsFromCkan(ckanBaseUrl) {
-  // Crop Catalogue (Seed Varieties) is exposed via "Ethiopian Seed Catalog" on CKAN,
-  // with resources named "Varieties" and "Crops".
-  const searchUrl = `${ckanBaseUrl}/api/3/action/package_search?q=${encodeURIComponent('tags:Crop')}&rows=5`;
-  const searchJson = await fetchJson(searchUrl);
-  const datasets = searchJson?.result?.results || [];
-
-  for (const ds of datasets) {
-    const resources = Array.isArray(ds.resources) ? ds.resources : [];
-    const varietiesRes = resources.find((r) => String(r.name || '').toLowerCase() === 'varieties');
-    const cropsRes = resources.find((r) => String(r.name || '').toLowerCase() === 'crops');
-    if (varietiesRes?.url && cropsRes?.url) {
-      return { varietiesUrl: varietiesRes.url, cropsUrl: cropsRes.url };
-    }
-  }
-
-  return null;
-}
-
 async function getLocationGeojsonUrlFromCkan(ckanBaseUrl) {
-  // Location Catalogue is published on CKAN with dataset id: ethiopian-administrative-boundary
-  const showUrl = `${ckanBaseUrl}/api/3/action/package_show?id=${encodeURIComponent('ethiopian-administrative-boundary')}`;
+  const root = String(ckanBaseUrl).replace(/\/+$/, '');
+  const showUrl = `${root}/api/3/action/package_show?id=${encodeURIComponent('ethiopian-administrative-boundary')}`;
   const showJson = await fetchJson(showUrl);
   const resources = showJson?.result?.resources || [];
 
   const geojsonRes = resources.find((r) => {
+    const url = String(r.url || '').toLowerCase();
     const name = String(r.name || '').toLowerCase();
-    const url = String(r.url || '');
-    return name.includes('json') && url.toLowerCase().includes('outputformat=json');
+    const isWfsJson =
+      (url.includes('outputformat=json') || url.includes('outputformat=application%2fjson')) &&
+      (url.includes('wfs') || url.includes('geoserver'));
+    return isWfsJson || (name.includes('json') && url.includes('outputformat=json'));
   });
 
   return geojsonRes?.url || null;
 }
 
 async function syncLocationAdministrativeBoundaries() {
-  const sourceSystem = 'ethionsdi.gov.et';
   const sourceCatalogue = 'location_catalogue';
 
-  const { ckanBaseUrl, ethionsdiWfsBaseUrl } = await getMasterdataSourceBaseUrls();
-  const LOCATION_WFS_GEOJSON_URL_FALLBACK =
-    `${ethionsdiWfsBaseUrl}?srsName=EPSG%3A4326&typename=geonode%3Aeth_adm2&outputFormat=json&version=1.0.0&service=WFS&request=GetFeature`;
+  const { datahubBaseUrl, ckanBaseUrl, ethionsdiWfsBaseUrl } = await getMasterdataSourceBaseUrls();
+  const directWfsFallback = buildNationalWoredaWfsGeojsonUrl(ethionsdiWfsBaseUrl);
 
-  const locationUrl = await getLocationGeojsonUrlFromCkan(ckanBaseUrl).catch(() => null) || LOCATION_WFS_GEOJSON_URL_FALLBACK;
-  const geojson = await fetchJson(locationUrl);
+  let locationUrl = null;
+  let sourceSystem = 'data.moa.gov.et';
+
+  async function tryCkanMirror(baseUrl, label) {
+    try {
+      const u = await getLocationGeojsonUrlFromCkan(baseUrl);
+      if (u) {
+        locationUrl = normalizeUpstreamLocationWfsUrl(u);
+        sourceSystem = label;
+        return true;
+      }
+    } catch (_) {
+      /* unreachable Data Hub / CKAN — try next */
+    }
+    return false;
+  }
+
+  // Prefer the MOA open-data portal first: datahub.moa.gov.et often times out outside Ethiopia.
+  await tryCkanMirror(ckanBaseUrl, 'data.moa.gov.et');
+  if (!locationUrl) {
+    await tryCkanMirror(datahubBaseUrl, 'datahub.moa.gov.et');
+  }
+  if (!locationUrl) {
+    locationUrl = directWfsFallback;
+    sourceSystem = 'ethionsdi.gov.et';
+  } else {
+    locationUrl = normalizeUpstreamLocationWfsUrl(locationUrl);
+  }
+
+  let geojson;
+  try {
+    geojson = await fetchJson(locationUrl);
+  } catch (_) {
+    geojson = await fetchJson(directWfsFallback);
+    sourceSystem = 'ethionsdi.gov.et';
+  }
+
+  if (!geojson || !Array.isArray(geojson.features) || !geojson.features.length) {
+    geojson = await fetchJson(directWfsFallback);
+    sourceSystem = 'ethionsdi.gov.et';
+  }
   const features = Array.isArray(geojson?.features) ? geojson.features : [];
   if (!features.length) return { insertedCount: 0, updatedCount: 0 };
 
@@ -275,12 +350,31 @@ async function syncLocationAdministrativeBoundaries() {
 
   const records = limitedFeatures.map((f) => {
     const props = f.properties || {};
-    const pCode = props.ID_2 ?? props.id_2 ?? props.ID2 ?? props.p_code ?? null;
-    const name = props.NAME_2 ?? props.name_2 ?? props.NAME2 ?? null;
-    const parentPCode = props.ID_1 ?? props.id_1 ?? props.ID1 ?? null;
+    const pCode =
+      props.wor_p_code ??
+      props.WOR_P_CODE ??
+      props.hrpcode ??
+      props.ID_2 ??
+      props.id_2 ??
+      props.ID2 ??
+      props.p_code ??
+      null;
+    const name =
+      props.woredaname ??
+      props.hrname ??
+      props.NAME_2 ??
+      props.name_2 ??
+      props.NAME2 ??
+      props.name ??
+      null;
+    const parentPCode =
+      props.zon_p_code ?? props.hrparent ?? props.ID_1 ?? props.id_1 ?? props.ID1 ?? null;
     const rawType = props.ENGTYPE_2 ?? props.TYPE_2 ?? props.type_2 ?? null;
 
-    const level = mapLocationLevel(rawType);
+    let level = mapLocationLevel(rawType);
+    if (props.woredaname || props.wor_p_code) level = 'woreda';
+    else if (props.zonename || props.zon_p_code) level = 'zone';
+    else if (props.regionname || props.reg_p_code) level = 'region';
     // Use only p_code for stable identity across syncs.
     const recordKey = pCode !== null && pCode !== undefined ? String(pCode) : sha256Hex(stableStringify(props));
 
@@ -375,70 +469,141 @@ async function syncLocationAdministrativeBoundaries() {
   return { insertedCount, updatedCount };
 }
 
+/**
+ * Curated baseline species when CKAN discovery finds no parseable JSON (fast, always completes).
+ * source_record_key uses prefix so real upstream IDs never collide.
+ */
+function livestockSeedRows() {
+  const rows = [
+    { id: 'oan-seed-cattle', common_name: 'Cattle', scientific_name: 'Bos taurus' },
+    { id: 'oan-seed-sheep', common_name: 'Sheep', scientific_name: 'Ovis aries' },
+    { id: 'oan-seed-goat', common_name: 'Goat', scientific_name: 'Capra hircus' },
+    { id: 'oan-seed-camel', common_name: 'Camel', scientific_name: 'Camelus dromedarius' },
+    { id: 'oan-seed-chicken', common_name: 'Chicken', scientific_name: 'Gallus gallus domesticus' },
+    { id: 'oan-seed-donkey', common_name: 'Donkey', scientific_name: 'Equus asinus' },
+    { id: 'oan-seed-horse', common_name: 'Horse', scientific_name: 'Equus caballus' },
+    { id: 'oan-seed-mule', common_name: 'Mule', scientific_name: 'Equus mulus' },
+    { id: 'oan-seed-pig', common_name: 'Pig', scientific_name: 'Sus scrofa domesticus' },
+    { id: 'oan-seed-bee', common_name: 'Honey bee', scientific_name: 'Apis mellifera' },
+    { id: 'oan-seed-fish', common_name: 'Fish (aquaculture)', scientific_name: null },
+    { id: 'oan-seed-turkey', common_name: 'Turkey', scientific_name: 'Meleagris gallopavo' },
+  ];
+  return rows;
+}
+
 async function syncLivestockCatalogue() {
-  const sourceSystem = 'data.moa.gov.et';
   const sourceCatalogue = 'livestock_catalogue';
 
-  const { ckanBaseUrl } = await getMasterdataSourceBaseUrls();
+  const resourceTimeoutMs = Number(process.env.LIVESTOCK_RESOURCE_TIMEOUT_MS) || 12000;
+  const maxBodyBytes = Number(process.env.LIVESTOCK_MAX_BODY_BYTES) || 2_500_000;
+  const searchRows = Number(process.env.LIVESTOCK_SEARCH_ROWS) || 10;
+  const maxPackageShow = Number(process.env.LIVESTOCK_MAX_PACKAGE_SHOW) || 12;
+  const maxResourceFetches = Number(process.env.LIVESTOCK_MAX_RESOURCE_FETCHES) || 18;
+  const earlyExitCount = Number(process.env.LIVESTOCK_EARLY_EXIT_COUNT) || 35;
+
+  const { datahubBaseUrl, ckanBaseUrl } = await getMasterdataSourceBaseUrls();
+  const ckanApiRoots = [ckanBaseUrl, datahubBaseUrl].filter((u, i, a) => u && a.indexOf(u) === i);
+
+  // Fewer, higher-signal queries; wide term "animal" pulls irrelevant huge datasets and slows sync.
   const queries = [
-    { q: 'tags:Livestock' },
     { q: 'tags:livestock' },
     { q: 'livestock-commercialization' },
+    { q: 'livestock' },
   ];
 
   const maxRecords = process.env.LIVESTOCK_MAX_RECORDS ? Number(process.env.LIVESTOCK_MAX_RECORDS) : 500;
 
   let discoveredRecords = [];
+  let resolvedSourceSystem = null;
+  let packageShowCalls = 0;
+  let resourceFetchCalls = 0;
+  let usedSeedFallback = false;
 
-  // Discovery: try to find a resource that returns JSON directly.
-  for (const query of queries) {
-    const searchUrl = `${ckanBaseUrl}/api/3/action/package_search?q=${encodeURIComponent(query.q)}&rows=20`;
-    const searchJson = await fetchJson(searchUrl);
-    const datasets = searchJson?.result?.results || [];
+  function labelForRoot(root) {
+    return String(root).includes('datahub') ? 'datahub.moa.gov.et' : 'data.moa.gov.et';
+  }
 
-    for (const ds of datasets) {
-      if (discoveredRecords.length >= maxRecords) break;
-      const dsId = ds.id;
-      if (!dsId) continue;
+  // Discovery: MOA portal first (often more reachable than Data Hub). Hard caps prevent multi-minute hangs.
+  outer: for (const ckanRoot of ckanApiRoots) {
+    for (const query of queries) {
+      if (discoveredRecords.length >= maxRecords) break outer;
+      const searchUrl = `${String(ckanRoot).replace(/\/+$/, '')}/api/3/action/package_search?q=${encodeURIComponent(query.q)}&rows=${searchRows}`;
+      let searchJson;
+      try {
+        searchJson = await fetchJson(searchUrl, {
+          timeoutMs: Math.min(resourceTimeoutMs, 15000),
+          maxBodyBytes,
+        });
+      } catch (_) {
+        continue;
+      }
+      const datasets = searchJson?.result?.results || [];
 
-      const showUrl = `${ckanBaseUrl}/api/3/action/package_show?id=${encodeURIComponent(dsId)}`;
-      const dsJson = await fetchJson(showUrl);
-      const resources = dsJson?.result?.resources || [];
+      for (const ds of datasets) {
+        if (discoveredRecords.length >= maxRecords) break outer;
+        if (packageShowCalls >= maxPackageShow) break outer;
+        const dsId = ds.id;
+        if (!dsId) continue;
 
-      for (const res of resources) {
-        if (discoveredRecords.length >= maxRecords) break;
-        const url = res.url;
-        if (!url || typeof url !== 'string') continue;
-
-        // Heuristics: prefer direct JSON-ish URLs.
-        const looksJson =
-          url.toLowerCase().includes('json') ||
-          url.toLowerCase().includes('api/') ||
-          url.toLowerCase().endsWith('.json');
-
-        const looksCsv =
-          url.toLowerCase().includes('csv') ||
-          url.toLowerCase().endsWith('.csv');
-
-        if (!looksJson && !looksCsv) continue;
-
+        const showUrl = `${String(ckanRoot).replace(/\/+$/, '')}/api/3/action/package_show?id=${encodeURIComponent(dsId)}`;
+        let dsJson;
         try {
-          const payload = await fetchJson(url);
-          const arr = normalizeJsonArray(payload);
-          if (!arr.length) continue;
-          discoveredRecords = discoveredRecords.concat(arr);
-          if (discoveredRecords.length >= maxRecords) break;
+          packageShowCalls += 1;
+          dsJson = await fetchJson(showUrl, {
+            timeoutMs: Math.min(resourceTimeoutMs, 15000),
+            maxBodyBytes,
+          });
         } catch (_) {
-          // Ignore non-JSON resources for now.
+          continue;
+        }
+        if (!dsJson?.success || !dsJson?.result) continue;
+
+        const resources = dsJson.result.resources || [];
+
+        for (const res of resources) {
+          if (discoveredRecords.length >= maxRecords) break outer;
+          if (resourceFetchCalls >= maxResourceFetches) break outer;
+          const url = res.url;
+          if (!url || typeof url !== 'string') continue;
+
+          const fmt = String(res.format || '').toLowerCase();
+          if (fmt === 'html') continue;
+
+          // Only JSON: fetchJson on CSV/HTML wastes full timeouts and never parses.
+          const looksJson =
+            fmt === 'json' ||
+            url.toLowerCase().includes('json') ||
+            url.toLowerCase().includes('api/') ||
+            url.toLowerCase().endsWith('.json');
+
+          if (!looksJson) continue;
+
+          try {
+            resourceFetchCalls += 1;
+            const payload = await fetchJson(url, { timeoutMs: resourceTimeoutMs, maxBodyBytes });
+            const arr = normalizeJsonArray(payload);
+            if (!arr.length) continue;
+            if (resolvedSourceSystem === null) {
+              resolvedSourceSystem = labelForRoot(ckanRoot);
+            }
+            discoveredRecords = discoveredRecords.concat(arr);
+            if (discoveredRecords.length >= earlyExitCount) break outer;
+            if (discoveredRecords.length >= maxRecords) break outer;
+          } catch (_) {
+            /* ignore slow/bad resources */
+          }
         }
       }
     }
-    if (discoveredRecords.length >= maxRecords) break;
   }
+
+  let sourceSystem = resolvedSourceSystem || 'data.moa.gov.et';
 
   discoveredRecords = discoveredRecords.slice(0, maxRecords);
   if (!discoveredRecords.length) {
-    return { insertedCount: 0, updatedCount: 0, discoveredRecords: 0 };
+    discoveredRecords = livestockSeedRows();
+    sourceSystem = 'openagrinet.masterdata.seed';
+    usedSeedFallback = true;
   }
 
   const records = discoveredRecords.map((r) => {
@@ -542,7 +707,13 @@ async function syncLivestockCatalogue() {
     throw err;
   }
 
-  return { insertedCount, updatedCount, discoveredRecords: discoveredRecords.length };
+  return {
+    insertedCount,
+    updatedCount,
+    discoveredRecords: records.length,
+    seedFallback: usedSeedFallback,
+    sourceSystem,
+  };
 }
 
 async function runMasterdataSync(catalogue) {

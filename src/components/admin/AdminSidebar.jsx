@@ -1,6 +1,7 @@
 import React from 'react';
-import { Users, UserCircle, Sprout, Landmark, MapPin, Mountain, LeafyGreen, BookMarked } from 'lucide-react';
+import { Users, UserCircle, Sprout, Landmark, MapPin, Mountain, LeafyGreen } from 'lucide-react';
 import SidebarNavLink from '../common/SidebarNavLink';
+import MasterDataSidebarGroup from '../common/MasterDataSidebarGroup';
 
 const AdminSidebar = () => {
   return (
@@ -26,9 +27,7 @@ const AdminSidebar = () => {
       <SidebarNavLink to="/dashboard/finance-portal" icon={<Landmark size={20} />}>
         Finance Portal
       </SidebarNavLink>
-      <SidebarNavLink to="/dashboard/catalogs" icon={<BookMarked size={20} />}>
-        Catalogs
-      </SidebarNavLink>
+      <MasterDataSidebarGroup />
     </>
   );
 };
