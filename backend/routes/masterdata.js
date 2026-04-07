@@ -1,9 +1,68 @@
 const express = require('express');
+const crypto = require('crypto');
 const { pool } = require('../db/pool');
 const { authRequired, requireAdmin } = require('../middleware/auth');
 const { runMasterdataSync } = require('../services/masterdataSync');
+const { sha256Hex, stableStringify } = require('../services/rowHash');
+const { tableForCatalogue, listMasterdataRecords } = require('../services/masterdataRecordsService');
 
 const router = express.Router();
+
+const LOCAL_SOURCE = 'local.openagri.net';
+
+function parseJsonBodyField(val, fallback) {
+  if (val === undefined || val === null) return fallback;
+  if (typeof val === 'object' && !Array.isArray(val)) return val;
+  if (typeof val === 'string') {
+    const t = val.trim();
+    if (!t) return fallback;
+    try {
+      return JSON.parse(t);
+    } catch {
+      const err = new Error('Invalid JSON in request body');
+      err.statusCode = 400;
+      throw err;
+    }
+  }
+  return val;
+}
+
+function cropRowHash(fields) {
+  return sha256Hex(
+    stableStringify({
+      varietyName: fields.variety_name,
+      cropName: fields.crop_name,
+      seedSupplyNotes: fields.seed_supply_notes,
+      producerName: fields.producer_name,
+      attributes: fields.attributes,
+    })
+  );
+}
+
+function locationRowHash(fields) {
+  return sha256Hex(
+    stableStringify({
+      level: fields.level,
+      pCode: fields.p_code,
+      name: fields.name,
+      parentPCode: fields.parent_p_code,
+      geometry: fields.geometry_geojson,
+    })
+  );
+}
+
+function livestockRowHash(fields) {
+  return sha256Hex(
+    stableStringify({
+      speciesCommonName: fields.species_common_name,
+      speciesScientificName: fields.species_scientific_name,
+      productionProgram: fields.production_program,
+      animalHealthProgram: fields.animal_health_program,
+      commercializationProgram: fields.commercialization_program,
+      attributes: fields.attributes,
+    })
+  );
+}
 
 function validateCatalogue(catalogue) {
   const allowed = ['crop_catalogue', 'location_catalogue', 'livestock_catalogue', 'all'];
@@ -126,8 +185,304 @@ router.get('/masterdata/sync-jobs/:jobId', authRequired, requireAdmin, async (re
   }
 });
 
+// Admin CRUD: full rows (for UI) — sync remains upsert-by-source-key; local rows use LOCAL_SOURCE.
+router.get('/masterdata/:catalogue/records', authRequired, requireAdmin, async (req, res) => {
+  const catalogue = validateCatalogue(req.params.catalogue);
+  if (!catalogue || catalogue === 'all') {
+    return res.status(400).json({ success: false, error: 'Invalid catalogue' });
+  }
+  if (!tableForCatalogue(catalogue)) {
+    return res.status(400).json({ success: false, error: 'Invalid catalogue' });
+  }
+
+  const limit = Math.min(Number(req.query.limit || 200), 500);
+  const offset = Math.max(Number(req.query.offset || 0), 0);
+
+  try {
+    const { rows, total, limit: lim, offset: off, qEcho } = await listMasterdataRecords(catalogue, {
+      limit,
+      offset,
+      q: req.query.q,
+    });
+    return res.json({
+      success: true,
+      catalogue,
+      count: rows.length,
+      total,
+      data: rows,
+      limit: lim,
+      offset: off,
+      q: qEcho,
+    });
+  } catch (err) {
+    console.error('GET /api/masterdata/:catalogue/records error:', err);
+    return res.status(500).json({ success: false, error: 'Unable to read records' });
+  }
+});
+
+router.post('/masterdata/:catalogue/records', authRequired, requireAdmin, async (req, res) => {
+  const catalogue = validateCatalogue(req.params.catalogue);
+  if (!catalogue || catalogue === 'all') {
+    return res.status(400).json({ success: false, error: 'Invalid catalogue' });
+  }
+  const table = tableForCatalogue(catalogue);
+  if (!table) {
+    return res.status(400).json({ success: false, error: 'Invalid catalogue' });
+  }
+
+  const b = req.body || {};
+
+  try {
+    if (catalogue === 'crop_catalogue') {
+      const attributes = parseJsonBodyField(b.attributes, {});
+      const variety_name = b.variety_name != null ? String(b.variety_name) : null;
+      const crop_name = b.crop_name != null ? String(b.crop_name) : null;
+      const producer_name = b.producer_name != null ? String(b.producer_name) : null;
+      const seed_supply_notes = b.seed_supply_notes != null ? String(b.seed_supply_notes) : null;
+      const source_record_key = b.source_record_key != null ? String(b.source_record_key) : crypto.randomUUID();
+      const row_hash = cropRowHash({
+        variety_name,
+        crop_name,
+        producer_name,
+        seed_supply_notes,
+        attributes,
+      });
+      const ins = await pool.query(
+        `INSERT INTO master_crop_seed_varieties
+           (source_system, source_catalogue, source_record_key, variety_name, crop_name, producer_name, seed_supply_notes,
+            attributes, row_hash, is_active)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,TRUE)
+         RETURNING *`,
+        [LOCAL_SOURCE, catalogue, source_record_key, variety_name, crop_name, producer_name, seed_supply_notes, attributes, row_hash]
+      );
+      return res.status(201).json({ success: true, data: ins.rows[0] });
+    }
+
+    if (catalogue === 'location_catalogue') {
+      const attributes = parseJsonBodyField(b.attributes, {});
+      const geometry_geojson = parseJsonBodyField(b.geometry_geojson, null);
+      const level = b.level != null ? String(b.level) : 'woreda';
+      const p_code = b.p_code != null ? String(b.p_code) : null;
+      const name = b.name != null ? String(b.name) : null;
+      const parent_p_code = b.parent_p_code != null ? String(b.parent_p_code) : null;
+      const source_record_key =
+        b.source_record_key != null ? String(b.source_record_key) : p_code || crypto.randomUUID();
+      const row_hash = locationRowHash({ level, p_code, name, parent_p_code, geometry_geojson });
+      const ins = await pool.query(
+        `INSERT INTO master_location_administrative_boundaries
+           (source_system, source_catalogue, source_record_key, level, p_code, name, parent_p_code,
+            geometry_geojson, attributes, row_hash, is_active)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,TRUE)
+         RETURNING *`,
+        [LOCAL_SOURCE, catalogue, source_record_key, level, p_code, name, parent_p_code, geometry_geojson, attributes, row_hash]
+      );
+      return res.status(201).json({ success: true, data: ins.rows[0] });
+    }
+
+    if (catalogue === 'livestock_catalogue') {
+      const attributes = parseJsonBodyField(b.attributes, {});
+      const species_common_name = b.species_common_name != null ? String(b.species_common_name) : null;
+      const species_scientific_name = b.species_scientific_name != null ? String(b.species_scientific_name) : null;
+      const production_program = b.production_program != null ? String(b.production_program) : null;
+      const animal_health_program = b.animal_health_program != null ? String(b.animal_health_program) : null;
+      const commercialization_program = b.commercialization_program != null ? String(b.commercialization_program) : null;
+      const source_record_key = b.source_record_key != null ? String(b.source_record_key) : crypto.randomUUID();
+      const row_hash = livestockRowHash({
+        species_common_name,
+        species_scientific_name,
+        production_program,
+        animal_health_program,
+        commercialization_program,
+        attributes,
+      });
+      const ins = await pool.query(
+        `INSERT INTO master_livestock_catalogue
+           (source_system, source_catalogue, source_record_key,
+            species_common_name, species_scientific_name,
+            production_program, animal_health_program, commercialization_program,
+            attributes, row_hash, is_active)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,TRUE)
+         RETURNING *`,
+        [
+          LOCAL_SOURCE,
+          catalogue,
+          source_record_key,
+          species_common_name,
+          species_scientific_name,
+          production_program,
+          animal_health_program,
+          commercialization_program,
+          attributes,
+          row_hash,
+        ]
+      );
+      return res.status(201).json({ success: true, data: ins.rows[0] });
+    }
+  } catch (err) {
+    if (err && err.statusCode === 400) {
+      return res.status(400).json({ success: false, error: err.message });
+    }
+    if (err && err.code === '23505') {
+      return res.status(409).json({ success: false, error: 'Duplicate source_record_key for this source' });
+    }
+    console.error('POST /api/masterdata/:catalogue/records error:', err);
+    return res.status(500).json({ success: false, error: 'Unable to create record' });
+  }
+
+  return res.status(500).json({ success: false, error: 'Unable to create record' });
+});
+
+router.put('/masterdata/:catalogue/records/:id', authRequired, requireAdmin, async (req, res) => {
+  const catalogue = validateCatalogue(req.params.catalogue);
+  if (!catalogue || catalogue === 'all') {
+    return res.status(400).json({ success: false, error: 'Invalid catalogue' });
+  }
+  const table = tableForCatalogue(catalogue);
+  if (!table) {
+    return res.status(400).json({ success: false, error: 'Invalid catalogue' });
+  }
+
+  const b = req.body || {};
+
+  try {
+    if (catalogue === 'crop_catalogue') {
+      const attributes = parseJsonBodyField(b.attributes, {});
+      const variety_name = b.variety_name != null ? String(b.variety_name) : null;
+      const crop_name = b.crop_name != null ? String(b.crop_name) : null;
+      const producer_name = b.producer_name != null ? String(b.producer_name) : null;
+      const seed_supply_notes = b.seed_supply_notes != null ? String(b.seed_supply_notes) : null;
+      const row_hash = cropRowHash({
+        variety_name,
+        crop_name,
+        producer_name,
+        seed_supply_notes,
+        attributes,
+      });
+      const upd = await pool.query(
+        `UPDATE master_crop_seed_varieties SET
+           variety_name = $2,
+           crop_name = $3,
+           producer_name = $4,
+           seed_supply_notes = $5,
+           attributes = $6,
+           row_hash = $7,
+           updated_at = now()
+         WHERE _id = $1 AND is_active = TRUE
+         RETURNING *`,
+        [req.params.id, variety_name, crop_name, producer_name, seed_supply_notes, attributes, row_hash]
+      );
+      if (!upd.rows.length) {
+        return res.status(404).json({ success: false, error: 'Record not found' });
+      }
+      return res.json({ success: true, data: upd.rows[0] });
+    }
+
+    if (catalogue === 'location_catalogue') {
+      const attributes = parseJsonBodyField(b.attributes, {});
+      const geometry_geojson = parseJsonBodyField(b.geometry_geojson, null);
+      const level = b.level != null ? String(b.level) : 'woreda';
+      const p_code = b.p_code != null ? String(b.p_code) : null;
+      const name = b.name != null ? String(b.name) : null;
+      const parent_p_code = b.parent_p_code != null ? String(b.parent_p_code) : null;
+      const row_hash = locationRowHash({ level, p_code, name, parent_p_code, geometry_geojson });
+      const upd = await pool.query(
+        `UPDATE master_location_administrative_boundaries SET
+           level = $2,
+           p_code = $3,
+           name = $4,
+           parent_p_code = $5,
+           geometry_geojson = $6,
+           attributes = $7,
+           row_hash = $8,
+           updated_at = now()
+         WHERE _id = $1 AND is_active = TRUE
+         RETURNING *`,
+        [req.params.id, level, p_code, name, parent_p_code, geometry_geojson, attributes, row_hash]
+      );
+      if (!upd.rows.length) {
+        return res.status(404).json({ success: false, error: 'Record not found' });
+      }
+      return res.json({ success: true, data: upd.rows[0] });
+    }
+
+    if (catalogue === 'livestock_catalogue') {
+      const attributes = parseJsonBodyField(b.attributes, {});
+      const species_common_name = b.species_common_name != null ? String(b.species_common_name) : null;
+      const species_scientific_name = b.species_scientific_name != null ? String(b.species_scientific_name) : null;
+      const production_program = b.production_program != null ? String(b.production_program) : null;
+      const animal_health_program = b.animal_health_program != null ? String(b.animal_health_program) : null;
+      const commercialization_program = b.commercialization_program != null ? String(b.commercialization_program) : null;
+      const row_hash = livestockRowHash({
+        species_common_name,
+        species_scientific_name,
+        production_program,
+        animal_health_program,
+        commercialization_program,
+        attributes,
+      });
+      const upd = await pool.query(
+        `UPDATE master_livestock_catalogue SET
+           species_common_name = $2,
+           species_scientific_name = $3,
+           production_program = $4,
+           animal_health_program = $5,
+           commercialization_program = $6,
+           attributes = $7,
+           row_hash = $8,
+           updated_at = now()
+         WHERE _id = $1 AND is_active = TRUE
+         RETURNING *`,
+        [
+          req.params.id,
+          species_common_name,
+          species_scientific_name,
+          production_program,
+          animal_health_program,
+          commercialization_program,
+          attributes,
+          row_hash,
+        ]
+      );
+      if (!upd.rows.length) {
+        return res.status(404).json({ success: false, error: 'Record not found' });
+      }
+      return res.json({ success: true, data: upd.rows[0] });
+    }
+  } catch (err) {
+    if (err && err.statusCode === 400) {
+      return res.status(400).json({ success: false, error: err.message });
+    }
+    console.error('PUT /api/masterdata/:catalogue/records/:id error:', err);
+    return res.status(500).json({ success: false, error: 'Unable to update record' });
+  }
+
+  return res.status(500).json({ success: false, error: 'Unable to update record' });
+});
+
+router.delete('/masterdata/:catalogue/records/:id', authRequired, requireAdmin, async (req, res) => {
+  const catalogue = validateCatalogue(req.params.catalogue);
+  if (!catalogue || catalogue === 'all') {
+    return res.status(400).json({ success: false, error: 'Invalid catalogue' });
+  }
+  const table = tableForCatalogue(catalogue);
+  if (!table) {
+    return res.status(400).json({ success: false, error: 'Invalid catalogue' });
+  }
+
+  try {
+    const del = await pool.query(`DELETE FROM ${table} WHERE _id = $1 RETURNING _id`, [req.params.id]);
+    if (!del.rows.length) {
+      return res.status(404).json({ success: false, error: 'Record not found' });
+    }
+    return res.json({ success: true, deletedId: del.rows[0]._id });
+  } catch (err) {
+    console.error('DELETE /api/masterdata/:catalogue/records/:id error:', err);
+    return res.status(500).json({ success: false, error: 'Unable to delete record' });
+  }
+});
+
 function isAllowedConfigKey(configKey) {
-  return ['ckan_base_url', 'ethioseed_base_url', 'ethionsdi_wfs_base_url'].includes(configKey);
+  return ['ckan_base_url', 'datahub_base_url', 'ethioseed_base_url', 'ethionsdi_wfs_base_url'].includes(configKey);
 }
 
 // Admin-only: read current masterdata base URLs configuration

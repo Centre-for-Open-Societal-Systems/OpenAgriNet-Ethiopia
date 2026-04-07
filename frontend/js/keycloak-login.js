@@ -58,7 +58,10 @@
           sessionStorage.removeItem('oan-app-logged-out');
           localStorage.setItem('oan-user', result.data.user.username);
           localStorage.setItem('oan-role', result.data.user.role);
-          if (result.data.token) localStorage.setItem('oan-token', result.data.token);
+          if (result.data.token) {
+            localStorage.setItem('oan-token', result.data.token);
+            localStorage.setItem('oan-app-jwt', result.data.token);
+          }
           window.location.href = 'dashboard.html';
           return;
         }
@@ -101,6 +104,7 @@
       var appLoggedOut = sessionStorage.getItem('oan-app-logged-out') === '1';
       if (appLoggedOut) {
         localStorage.removeItem('oan-token');
+        localStorage.removeItem('oan-app-jwt');
         localStorage.removeItem('oan-role');
         localStorage.removeItem('oan-user');
         localStorage.removeItem('oan-email');
@@ -119,9 +123,10 @@
           redirectUri: new URL('index.html', window.location.href).href,
         });
       }
-      var hasAppJwt = !!localStorage.getItem('oan-token');
+      var hasAppJwt = !!(localStorage.getItem('oan-token') || localStorage.getItem('oan-app-jwt'));
       if (hasAppJwt && !hasValidAppRole()) {
         localStorage.removeItem('oan-token');
+        localStorage.removeItem('oan-app-jwt');
         hasAppJwt = false;
       }
       if (hasAppJwt && hasValidAppRole()) {
