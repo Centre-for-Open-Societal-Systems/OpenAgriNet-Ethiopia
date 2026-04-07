@@ -80,8 +80,11 @@ create_user() {
 create_user admin admin
 assign_realm_role admin admin
 
+create_user admin1 admin1
+assign_realm_role admin1 admin
+
 create_user superuser superuser
 assign_realm_role superuser super
 
-echo "[Keycloak init] Users: admin/admin (admin), superuser/superuser (super)"
+echo "[Keycloak init] Users: admin/admin (admin), admin1/admin1 (admin), superuser/superuser (super)"
 echo "[Keycloak init] Done."

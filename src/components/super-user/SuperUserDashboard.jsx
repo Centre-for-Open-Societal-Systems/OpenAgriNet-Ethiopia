@@ -27,7 +27,9 @@ const SUPER_SECTIONS = new Set([
   'soil-registry',
   'seed-registry',
   'finance-portal',
-  'catalogs',
+  'crop-master',
+  'location-master',
+  'livestock-master',
   'data-integration-hub',
   'administration',
   'system-health',
@@ -72,10 +74,20 @@ const SUPER_PLACEHOLDER = {
     description: 'Seed traceability.',
     breadcrumbs: ['Seed Registry'],
   },
-  catalogs: {
-    title: 'Catalogs',
-    description: 'Master data catalogues.',
-    breadcrumbs: ['Catalogs'],
+  'crop-master': {
+    title: 'Crop Master',
+    description: 'Crop and seed master catalogue.',
+    breadcrumbs: ['Master Data', 'Crop Master'],
+  },
+  'location-master': {
+    title: 'Location Master',
+    description: 'Administrative location master catalogue.',
+    breadcrumbs: ['Master Data', 'Location Master'],
+  },
+  'livestock-master': {
+    title: 'Livestock Master',
+    description: 'Livestock master catalogue.',
+    breadcrumbs: ['Master Data', 'Livestock Master'],
   },
   'data-integration-hub': {
     title: 'Data Integration Hub',
@@ -208,6 +220,10 @@ const SuperUserDashboard = ({ userRole, onRoleChange, onLogout }) => {
     const handleApplyCustomDate = () => {
         if (fromDate && toDate) setDataVersion(prev => prev + 1);
     };
+
+    if (section === 'catalogs') {
+        return <Navigate to="/dashboard/crop-master" replace />;
+    }
 
     if (!SUPER_SECTIONS.has(section)) {
         return <Navigate to="/dashboard/overview" replace />;

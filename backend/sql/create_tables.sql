@@ -63,9 +63,10 @@ WHERE config_group = 'masterdata';
 -- Default source base URLs (insert-if-not-exists)
 INSERT INTO app_configuration (config_group, config_key, config_value, description)
 VALUES
-  ('masterdata', 'ckan_base_url', 'https://data.moa.gov.et', 'CKAN API base URL'),
-  ('masterdata', 'ethioseed_base_url', 'https://ethioseed.moa.gov.et', 'Ethiopian Seed Catalog base URL'),
-  ('masterdata', 'ethionsdi_wfs_base_url', 'http://www.ethionsdi.gov.et/geoserver/wfs', 'Administrative boundary GeoServer WFS base URL')
+  ('masterdata', 'ckan_base_url', 'https://data.moa.gov.et', 'Legacy MOA data portal CKAN API base URL'),
+  ('masterdata', 'datahub_base_url', 'https://datahub.moa.gov.et', 'National Agricultural Data Hub CKAN API base URL'),
+  ('masterdata', 'ethioseed_base_url', 'https://ethioseed.moa.gov.et', 'EthioSeed platform base URL (crop / seed catalogue)'),
+  ('masterdata', 'ethionsdi_wfs_base_url', 'https://ethionsdi.gov.et/geoserver/wfs', 'Administrative boundary GeoServer WFS base URL (fallback)')
 ON CONFLICT (config_group, config_key) DO NOTHING;
 
 -- =========================================================
@@ -128,7 +129,7 @@ CREATE INDEX IF NOT EXISTS idx_master_crop_seed_varieties_active
 CREATE TABLE IF NOT EXISTS master_location_administrative_boundaries (
   _id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 
-  source_system TEXT NOT NULL, -- e.g. 'ethionsdi.gov.et'
+  source_system TEXT NOT NULL, -- e.g. 'datahub.moa.gov.et' | 'data.moa.gov.et' | 'ethionsdi.gov.et'
   source_catalogue TEXT NOT NULL, -- 'location_catalogue'
 
   source_record_key TEXT NOT NULL, -- stable: e.g. 'woreda:<p_code>'
@@ -160,7 +161,7 @@ CREATE INDEX IF NOT EXISTS idx_master_location_administrative_boundaries_active
 CREATE TABLE IF NOT EXISTS master_livestock_catalogue (
   _id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 
-  source_system TEXT NOT NULL, -- e.g. 'data.moa.gov.et'
+  source_system TEXT NOT NULL, -- e.g. 'datahub.moa.gov.et'
   source_catalogue TEXT NOT NULL, -- 'livestock_catalogue'
 
   source_record_key TEXT NOT NULL,

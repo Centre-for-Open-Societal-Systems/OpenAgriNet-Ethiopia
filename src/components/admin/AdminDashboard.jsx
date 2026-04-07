@@ -27,7 +27,9 @@ const ADMIN_SECTIONS = new Set([
   'soil-registry',
   'seed-registry',
   'finance-portal',
-  'catalogs',
+  'crop-master',
+  'location-master',
+  'livestock-master',
   'reports-analytics',
   'admin-settings',
 ]);
@@ -68,10 +70,20 @@ const ADMIN_PLACEHOLDER = {
     description: 'Seed lots and distribution.',
     breadcrumbs: ['Seed Registry'],
   },
-  catalogs: {
-    title: 'Catalogs',
-    description: 'Master data catalogues (admin API).',
-    breadcrumbs: ['Catalogs'],
+  'crop-master': {
+    title: 'Crop Master',
+    description: 'Crop and seed master catalogue.',
+    breadcrumbs: ['Master Data', 'Crop Master'],
+  },
+  'location-master': {
+    title: 'Location Master',
+    description: 'Administrative location master catalogue.',
+    breadcrumbs: ['Master Data', 'Location Master'],
+  },
+  'livestock-master': {
+    title: 'Livestock Master',
+    description: 'Livestock master catalogue.',
+    breadcrumbs: ['Master Data', 'Livestock Master'],
   },
   'reports-analytics': {
     title: 'Reports & Analytics',
@@ -185,6 +197,10 @@ const AdminDashboard = ({ userRole, onRoleChange, onLogout }) => {
     const handleApplyCustomDate = () => {
         if (fromDate && toDate) setDataVersion(prev => prev + 1);
     };
+
+    if (section === 'catalogs') {
+        return <Navigate to="/dashboard/crop-master" replace />;
+    }
 
     if (!ADMIN_SECTIONS.has(section)) {
         return <Navigate to="/dashboard/overview" replace />;

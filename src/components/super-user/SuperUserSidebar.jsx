@@ -12,9 +12,9 @@ import {
   MapPin,
   Mountain,
   LeafyGreen,
-  BookMarked,
 } from 'lucide-react';
 import SidebarNavLink from '../common/SidebarNavLink';
+import MasterDataSidebarGroup from '../common/MasterDataSidebarGroup';
 
 const SuperUserSidebar = () => {
   return (
@@ -48,9 +48,7 @@ const SuperUserSidebar = () => {
       >
         Data Integration Hub
       </SidebarNavLink>
-      <SidebarNavLink to="/dashboard/catalogs" icon={<BookMarked size={20} />}>
-        Catalogs
-      </SidebarNavLink>
+      <MasterDataSidebarGroup />
       <SidebarNavLink
         to="/dashboard/administration"
         icon={<Shield size={20} />}
