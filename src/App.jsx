@@ -7,7 +7,7 @@ import AdminDashboard from './components/admin/AdminDashboard'
 import SuperUserDashboard from './components/super-user/SuperUserDashboard'
 import Login from './components/Login'
 
-import keycloak from './keycloak'
+import keycloak, { initKeycloak, KEYCLOAK_INIT_OPTIONS } from './keycloak'
 import { exchangeKeycloakSession } from './api/client'
 
 function AppRoutes() {
@@ -17,11 +17,7 @@ function AppRoutes() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    keycloak
-      .init({
-        onLoad: 'check-sso',
-        pkceMethod: 'S256',
-      })
+    initKeycloak(KEYCLOAK_INIT_OPTIONS)
       .then((auth) => {
         setIsAuthenticated(auth)
 
