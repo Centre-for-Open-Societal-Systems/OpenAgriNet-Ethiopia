@@ -59,9 +59,7 @@ function App() {
 
   // ✅ Logout
   const handleLogout = () => {
-    keycloak.logout({
-      redirectUri: "http://localhost:5173/login"
-    });
+    keycloak.logout();
   };
 
   // ✅ Render dashboard based on role
