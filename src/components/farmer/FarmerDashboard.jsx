@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { NavLink } from 'react-router-dom';
+import { useParams, Navigate } from 'react-router-dom';
 import './FarmerDashboard.css';
 import '../common/ContentArea.css';
+import '../common/SectionPlaceholder.css';
 import {
     Home, Users, User, MapPin, Bird, Sprout, Mountain, Shield, Download,
-    Database, BarChart2, Settings, ChevronDown, Bell, Globe, HelpCircle, Info, Menu,
-    TrendingUp, TrendingDown, Calendar, LogOut, Briefcase, Activity, Server, FileText, CloudRain, Sun, Moon, Languages, UserCircle, Landmark, Building2, LayoutDashboard, FileSpreadsheet, Beef, Wheat, X, History, ClipboardCheck, UserPlus, Search, Eye, Printer, Check
+    Database, BarChart2, Settings, ChevronDown, Bell, Globe, HelpCircle, Info,
+    TrendingUp, TrendingDown, Calendar, LogOut, Briefcase, Activity, Server, FileText, CloudRain, Sun, Moon, Languages, UserCircle, Landmark, Building2, LayoutDashboard, FileSpreadsheet, Beef, Wheat, X, History, ClipboardCheck
 } from 'lucide-react';
 
 // Farmer-specific components
@@ -13,9 +14,45 @@ import FarmerSidebar from './FarmerSidebar';
 import FarmerStats from './FarmerStats';
 import ATILogo from '../ATILogo';
 import TopHeader from '../common/TopHeader';
-import PageHeader from '../common/PageHeader';
+import SidebarNavLink from '../common/SidebarNavLink';
+import SectionPlaceholder from '../common/SectionPlaceholder';
+import WorkflowRouter from '../workflow/WorkflowRouter';
+import FarmerRegistry from './FarmerRegistry';
+
+const FARMER_SECTIONS = new Set([
+  'overview',
+  'farmer-registry',
+  'livestock-registry',
+  'crop-registry',
+  'finance-portal',
+]);
+
+const FARMER_PLACEHOLDER = {
+  'farmer-registry': {
+    title: 'Farmer Registry',
+    description:
+      'Browse and manage farmer records, cooperative links, and verification status. Wire this view to your registry API when ready.',
+    breadcrumbs: ['Farmer Registry'],
+  },
+  'livestock-registry': {
+    title: 'Livestock Registry',
+    description: 'Track animals, batches, and health events. Connect livestock master data and movements here.',
+    breadcrumbs: ['Livestock Registry'],
+  },
+  'crop-registry': {
+    title: 'Crop Registry',
+    description: 'Plots, seasons, and production data. Hook up crop and seed catalog endpoints as they become available.',
+    breadcrumbs: ['Crop Registry'],
+  },
+  'finance-portal': {
+    title: 'Finance Portal',
+    description: 'Loan applications, disbursements, and repayment summaries for your farm operations.',
+    breadcrumbs: ['Finance Portal'],
+  },
+};
 
 const FarmerDashboard = ({ userRole, onRoleChange, onLogout }) => {
+    const { section } = useParams();
     const [theme, setTheme] = useState('light');
     const [language, setLanguage] = useState('en');
     const [dateFilter, setDateFilter] = useState('Today');
@@ -35,8 +72,6 @@ const FarmerDashboard = ({ userRole, onRoleChange, onLogout }) => {
     const [activityPage, setActivityPage] = useState(1);
     const [registryFilter, setRegistryFilter] = useState('All');
     const [showRegistryDropdown, setShowRegistryDropdown] = useState(false);
-    const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
-    const [exportMessage, setExportMessage] = useState(null);
     const activitiesPerPage = 5;
 
     const datePickerRef = useRef(null);
@@ -252,7 +287,7 @@ const FarmerDashboard = ({ userRole, onRoleChange, onLogout }) => {
                 icon: <Database size={20} className="green-text" />,
                 bg: 'green-bg',
                 timestamp: monthTs, // Spread across the month
-                dateCategory: 'older'
+                dateCategory: 'thisMonth'
             },
         ];
 
@@ -304,33 +339,31 @@ const FarmerDashboard = ({ userRole, onRoleChange, onLogout }) => {
                 const minute = (i * 7) % 60;
                 timestamp.setHours(hour, minute, 0);
                 timeDisplay = `Today, ${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-            } else if (i <= 35) { // Yesterday
+            } else if (i <= 30) { // Yesterday
                 dateCategory = 'yesterday';
                 const hour = 15 - (i % 8);
                 const minute = (i * 11) % 60;
                 timestamp.setDate(timestamp.getDate() - 1);
                 timestamp.setHours(hour, minute, 0);
                 timeDisplay = `Yesterday, ${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-            } else if (i <= 60) { // This Week (Excluding Today/Yesterday)
+            } else if (i <= 50) { // This Week
                 dateCategory = 'thisWeek';
                 const daysAgo = 2 + (i % 5);
                 const hour = 10 + (i % 7);
                 const minute = (i * 13) % 60;
                 timestamp.setDate(timestamp.getDate() - daysAgo);
                 timestamp.setHours(hour, minute, 0);
-                const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
                 const dayName = dayNames[timestamp.getDay()];
-                timeDisplay = `${dayName}, ${timestamp.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
-            } else { // This Month / Older (Including day names for clarity)
-                dateCategory = 'older';
-                const daysAgo = 8 + (i % 50);
+                timeDisplay = `${dayName}, ${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+            } else { // This Month
+                dateCategory = 'thisMonth';
+                const daysAgo = 7 + (i % 53);
                 const hour = 8 + (i % 9);
                 const minute = (i * 17) % 60;
                 timestamp.setDate(timestamp.getDate() - daysAgo);
                 timestamp.setHours(hour, minute, 0);
-                const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-                const dayName = dayNames[timestamp.getDay()];
-                timeDisplay = `${dayName}, ${timestamp.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+                timeDisplay = timestamp.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
             }
 
             allActivities.push({
@@ -346,79 +379,23 @@ const FarmerDashboard = ({ userRole, onRoleChange, onLogout }) => {
             });
         }
 
-        const activities = allActivities.map(a => ({ ...a })).sort((a, b) => b.timestamp - a.timestamp);
+        const activities = allActivities.map(a => ({ ...a }));
         const currentMs = Date.now();
 
-        // Determine result based on filter (Pure Filtering)
         switch (dateFilter) {
             case 'Today':
-                return activities.filter(a => a.dateCategory === 'today')
-                    .map(a => {
-                        // time is stored as "Today, HH:MM" — split for dual-line display
-                        const timePart = a.time.replace('Today, ', '');
-                        return {
-                            ...a,
-                            time: timePart,     // HH:MM shown on top
-                            dayNameLabel: 'Today' // shown below
-                        };
-                    });
+                return activities.filter(activity => activity.dateCategory === 'today');
             case 'Yesterday':
-                return activities.filter(a => a.dateCategory === 'yesterday')
-                    .map(a => {
-                        // time is stored as "Yesterday, HH:MM" — split it for dual-line display
-                        const timePart = a.time.replace('Yesterday, ', '');
-                        return {
-                            ...a,
-                            time: timePart,        // HH:MM shown on top
-                            dayNameLabel: 'Yesterday' // shown below
-                        };
-                    });
+                return activities.filter(activity => activity.dateCategory === 'yesterday');
             case 'This Week':
-                return activities.filter(a => a.dateCategory === 'thisWeek')
-                    .map(a => {
-                        const d = new Date(a.timestamp);
-                        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-                        const dayName = dayNames[d.getDay()];
-                        const dateStr = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-                        return {
-                            ...a,
-                            dateCategory: 'thisWeek',
-                            time: dateStr,
-                            dayNameLabel: dayName
-                        };
-                    });
+                return activities.filter(activity => activity.timestamp >= currentMs - 7 * 86400000);
             case 'This Month':
-                // Including older data as "This Month"
-                return activities.filter(a => a.dateCategory === 'older')
-                    .map(a => {
-                        const d = new Date(a.timestamp);
-                        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-                        const dayName = dayNames[d.getDay()];
-                        const dateStr = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-                        return {
-                            ...a,
-                            dateCategory: 'older',
-                            time: dateStr,
-                            dayNameLabel: dayName
-                        };
-                    });
+                return activities.filter(activity => activity.timestamp >= currentMs - 30 * 86400000);
             case 'Custom Date':
                 if (fromDate && toDate) {
                     const fromTs = new Date(fromDate).setHours(0, 0, 0, 0);
                     const toTs = new Date(toDate).setHours(23, 59, 59, 999);
-                    return activities.filter(a => a.timestamp >= fromTs && a.timestamp <= toTs)
-                        .map(a => {
-                            const d = new Date(a.timestamp);
-                            const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-                            const dayName = dayNames[d.getDay()];
-                            const dateStr = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-                            return {
-                                ...a,
-                                dateCategory: 'custom',
-                                time: dateStr,
-                                dayNameLabel: dayName
-                            };
-                        });
+                    return activities.filter(activity => activity.timestamp >= fromTs && activity.timestamp <= toTs);
                 }
                 return [];
             default:
@@ -493,145 +470,166 @@ const FarmerDashboard = ({ userRole, onRoleChange, onLogout }) => {
         return pages;
     };
 
-    const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
+    if (!FARMER_SECTIONS.has(section)) {
+        return <Navigate to="/dashboard/overview" replace />;
+    }
 
-    const handleExportCSV = () => {
-        setExportMessage({ type: 'info', text: 'Preparing CSV export...' });
-
-        setTimeout(() => {
-            try {
-                const activities = getRecentActivities();
-                const headers = ["Time", "Activity", "Category", "Details"];
-                const csvData = activities.map(a => {
-                    // Stripping React components from text
-                    const plainText = a.text?.props?.children ?
-                        a.text.props.children.map(child => typeof child === 'string' ? child : child.props?.children || '').join('') :
-                        String(a.text);
-
-                    return [
-                        `"${a.time}"`,
-                        `"${a.heading}"`,
-                        `"${a.type}"`,
-                        `"${plainText.replace(/"/g, '""')}"`
-                    ].join(",");
-                });
-
-                const csvContent = [headers.join(","), ...csvData].join("\n");
-                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                const link = document.createElement("a");
-                const url = URL.createObjectURL(blob);
-
-                link.setAttribute("href", url);
-                link.setAttribute("download", `OAN_Farmer_Report_${new Date().toISOString().split('T')[0]}.csv`);
-                link.style.visibility = 'hidden';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-
-                setExportMessage({ type: 'success', text: 'CSV Exported Successfully!' });
-                setShowDownloadOptions(false);
-                setTimeout(() => setExportMessage(null), 3000);
-            } catch (err) {
-                console.error(err);
-                setExportMessage({ type: 'error', text: 'CSV Export Failed' });
-                setTimeout(() => setExportMessage(null), 3000);
-            }
-        }, 800);
-    };
-
-    const handleExportPDF = () => {
-        setExportMessage({ type: 'info', text: 'Generating PDF document...' });
-
-        setTimeout(() => {
-            setExportMessage({ type: 'success', text: 'PDF Generated and downloaded!' });
-            setShowDownloadOptions(false);
-            setTimeout(() => setExportMessage(null), 3000);
-        }, 1500);
-    };
+    if (section === 'farmer-registry') {
+        return (
+            <FarmerRegistry
+                userRole={userRole}
+                onRoleChange={onRoleChange}
+                onLogout={onLogout}
+                overviewPath="/dashboard/overview"
+            />
+        );
+    }
 
     return (
-        <div className={`dashboard-layout theme-${theme} ${isSidebarOpen ? 'sidebar-open' : ''}`}>
-            {/* Export Notification */}
-            {exportMessage && (
-                <div className={`export-toast ${exportMessage.type}`}>
-                    <div className="toast-icon">
-                        {exportMessage.type === 'info' ? <Activity size={18} /> :
-                            exportMessage.type === 'success' ? <Check size={18} /> : <X size={18} />}
-                    </div>
-                    <span>{exportMessage.text}</span>
-                </div>
-            )}
-            {/* Sidebar Overlay for Mobile */}
-            {isSidebarOpen && <div className="sidebar-backdrop" onClick={toggleSidebar}></div>}
-
+        <div className={`dashboard-layout theme-${theme}`}>
             {/* Sidebar */}
-            <aside className={`sidebar ${isSidebarOpen ? 'open' : 'collapsed'}`}>
+            <aside className="sidebar">
                 <div className="sidebar-header">
                     <div className="logo-container">
-                        {/* <div className="logo-icon">
+                        <div className="logo-icon">
                             <Sprout size={24} color="#f59e0b" />
                         </div>
                         <div className="logo-text">
-                            <h2>OAN</h2>
-                        </div> */}
-
-                        <div className="logo-icon"><Sprout size={24} color="#f59e0b" /></div>
-                        <div className="logo-text"><h2>OpenAgriNet</h2><span className="logo-subtext">Ethiopia</span></div>
-
+                            <h2>OpenAgriNet</h2>
+                            <span className="logo-subtext">Ethiopia</span>
+                        </div>
                     </div>
-                    {/* Embedded Toggler inside the sidebar matching the design screenshot */}
-                    <button className="sidebar-embedded-toggler" onClick={toggleSidebar}>
-                        <Menu size={20} color="white" />
-                    </button>
                 </div>
 
                 <nav className="sidebar-nav">
-                    <NavLink to="/dashboard" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-                        <Home size={20} />
-                        <span>Dashboard</span>
-                    </NavLink>
-
+                    <SidebarNavLink to="/dashboard/overview" end icon={<Home size={20} />}>
+                        Dashboard
+                    </SidebarNavLink>
                     <FarmerSidebar />
-
-
                 </nav>
             </aside>
 
             {/* Main Content */}
             <main className="dashboard-main">
-                <TopHeader
-                    userRole={userRole}
-                    onRoleChange={onRoleChange}
-                    theme={theme}
-                    toggleTheme={toggleTheme}
-                    language={language}
-                    setLanguage={setLanguage}
-                    onLogout={onLogout}
-                    toggleSidebar={toggleSidebar}
+                <TopHeader 
+                    userRole={userRole} 
+                    onRoleChange={onRoleChange} 
+                    theme={theme} 
+                    toggleTheme={toggleTheme} 
+                    language={language} 
+                    setLanguage={setLanguage} 
+                    onLogout={onLogout} 
                 />
 
-                {/* Content Area */}
+                {section === 'overview' ? (
                 <div className="content-area">
-                    <PageHeader
-                        title="Farmer Dashboard"
-                        subtitle={<>Welcome to <span className="highlight-text">Ethiopia OpenAgriNet</span> — National Agricultural Data Platform</>}
-                        dateFilter={dateFilter}
-                        onDateFilterChange={handleDateFilterSelect}
-                        showCustomDatePicker={showCustomDatePicker}
-                        setShowCustomDatePicker={setShowCustomDatePicker}
-                        datePickerRef={datePickerRef}
-                        fromDate={fromDate}
-                        toDate={toDate}
-                        onFromDateChange={handleFromDateChange}
-                        onToDateChange={handleToDateChange}
-                        onApplyCustomDate={handleApplyCustomDate}
-                        todayDate={todayDate}
-                        showDownloadOptions={showDownloadOptions}
-                        setShowDownloadOptions={setShowDownloadOptions}
-                        downloadMenuRef={downloadMenuRef}
-                        onExportCSV={handleExportCSV}
-                        onExportPDF={handleExportPDF}
-                    />
+                    <div className="page-header">
+                        <div className="page-header-left">
+                            <h1>Farmer Dashboard</h1>
+                            <p>Welcome to <span className="highlight-text">Ethiopia OpenAgriNet</span> — National Agricultural Data Platform</p>
+                        </div>
+                        <div className="page-header-right">
+                            <div className="page-header-actions">
+                                <div className="compact-date-wrapper">
+                                    <div className="compact-date-label">Select Date</div>
+                                    <div className="compact-date-select-container">
+                                        <Calendar size={18} className="compact-icon text-gray" />
+                                        <select
+                                            value={dateFilter}
+                                            onChange={handleDateFilterSelect}
+                                            onClick={(e) => {
+                                                if (dateFilter === 'Custom Date' && !showCustomDatePicker) {
+                                                    setShowCustomDatePicker(true);
+                                                }
+                                            }}
+                                            className="compact-date-select"
+                                        >
+                                            <option value="Today">Today</option>
+                                            <option value="Yesterday">Yesterday</option>
+                                            <option value="This Week">This Week</option>
+                                            <option value="This Month">This Month</option>
+                                            <option value="Custom Date">Custom Date</option>
+                                        </select>
+                                    </div>
+                                    {showCustomDatePicker && (
+                                        <div className="compact-custom-date-popup" ref={datePickerRef}>
+                                            <div className="date-range-inputs">
+                                                <div className="date-input-group">
+                                                    <label className="date-input-label">From Date</label>
+                                                    <input
+                                                        type="date"
+                                                        value={fromDate}
+                                                        onChange={handleFromDateChange}
+                                                        className="custom-date-input"
+                                                        max={todayDate}
+                                                    />
+                                                </div>
+                                                <div className="date-input-group">
+                                                    <label className="date-input-label">To Date</label>
+                                                    <input
+                                                        type="date"
+                                                        value={toDate}
+                                                        onChange={handleToDateChange}
+                                                        className="custom-date-input"
+                                                        max={todayDate}
+                                                    />
+                                                </div>
+                                                <div className="date-input-group button-group">
+                                                    <label className="date-input-label">&nbsp;</label>
+                                                    {fromDate && toDate && (
+                                                        <button
+                                                            className="apply-custom-date-btn inline-btn"
+                                                            onClick={() => {
+                                                                handleApplyCustomDate();
+                                                                setShowCustomDatePicker(false);
+                                                            }}
+                                                        >
+                                                            Go
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="download-action-wrapper" ref={downloadMenuRef}>
+                                    <button
+                                        className="download-action-btn"
+                                        onClick={() => setShowDownloadOptions(!showDownloadOptions)}
+                                    >
+                                        <Download size={18} />
+                                        <span>Download</span>
+                                        <ChevronDown size={16} />
+                                    </button>
+                                    {showDownloadOptions && (
+                                        <div className="download-options-dropdown">
+                                            <button
+                                                className="download-option"
+                                                onClick={() => {
+                                                    console.log('Export CSV');
+                                                    setShowDownloadOptions(false);
+                                                }}
+                                            >
+                                                <FileSpreadsheet size={16} color="#10b981" />
+                                                <span>Export CSV</span>
+                                            </button>
+                                            <button
+                                                className="download-option"
+                                                onClick={() => {
+                                                    console.log('Export PDF');
+                                                    setShowDownloadOptions(false);
+                                                }}
+                                            >
+                                                <FileText size={16} color="#ef4444" />
+                                                <span>Export PDF</span>
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
                     {/* Stats Grid */}
                     <div className="stats-grid">
@@ -663,62 +661,24 @@ const FarmerDashboard = ({ userRole, onRoleChange, onLogout }) => {
                                     <span style={{ fontSize: '14px', fontWeight: '500' }}>No activities found for this period.</span>
                                 </div>
                             ) : (
-                                <div className="activities-list" style={{ flex: 1, paddingTop: (dateFilter !== 'All Time') ? '0' : 'inherit' }}>
-                                    {paginatedActivities.map((activity, index) => {
-                                        // Show headers only if the filter is "All Time" OR we transition to a non-matching group
-                                        // But the user specifically wants to remove Today's heading and border when in Today selection.
-                                        const showHeader = (dateFilter === 'All Time') &&
-                                            (index === 0 || paginatedActivities[index - 1].dateCategory !== activity.dateCategory);
-
-                                        let headerLabel;
-                                        const dateObj = new Date(activity.timestamp);
-
-                                        if (activity.dateCategory === 'custom') {
-                                            headerLabel = dateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase();
-                                        } else if (activity.dateCategory === 'today') {
-                                            headerLabel = 'TODAY';
-                                        } else if (activity.dateCategory === 'yesterday') {
-                                            headerLabel = 'YESTERDAY';
-                                        } else if (activity.dateCategory === 'thisWeek') {
-                                            headerLabel = 'THIS WEEK';
-                                        } else if (activity.dateCategory === 'older') {
-                                            headerLabel = dateObj.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toUpperCase();
-                                        } else {
-                                            headerLabel = 'OLDER ACTIVITIES';
-                                        }
-
-                                        return (
-                                            <React.Fragment key={activity.id}>
-                                                {showHeader && (
-                                                    <div className="activity-group-header">
-                                                        {headerLabel}
-                                                    </div>
-                                                )}
-                                                <div className="activity-item">
-                                                    <div className={`activity-icon ${activity.bg}`} style={{ width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginRight: '16px' }}>
-                                                        {activity.icon}
-                                                    </div>
-                                                    <div className="activity-content">
-                                                        <div className="activity-heading">{activity.heading}</div>
-                                                        <div className="activity-running-text">{activity.text}</div>
-                                                    </div>
-                                                    <div className="activity-time-container" style={{ textAlign: 'right', display: 'flex', flexDirection: 'column' }}>
-                                                        <div className="activity-time">{activity.time}</div>
-                                                        {activity.dayNameLabel && (
-                                                            <div className="activity-day-label" style={{ fontSize: '11px', color: '#9ca3af', marginTop: '2px' }}>
-                                                                {activity.dayNameLabel}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </React.Fragment>
-                                        );
-                                    })}
+                                <div className="activity-list" style={{ flex: 1 }}>
+                                    {paginatedActivities.map(activity => (
+                                        <div className="activity-item" key={activity.id}>
+                                            <div className={`activity-icon ${activity.bg}`} style={{ width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginRight: '16px' }}>
+                                                {activity.icon}
+                                            </div>
+                                            <div className="activity-content">
+                                                <div className="activity-heading">{activity.heading}</div>
+                                                <div className="activity-running-text">{activity.text}</div>
+                                            </div>
+                                            <div className="activity-time">{activity.time}</div>
+                                        </div>
+                                    ))}
                                 </div>
                             )}
 
-                            {totalPages > 1 && (
-                                <div className="activity-pagination" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', borderTop: '1px solid #f3f4f6', paddingTop: '20px', marginTop: '16px' }}>
+                            {totalPages > 0 && (
+                                <div className="activity-pagination" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', borderTop: '1px solid #f3f4f6', paddingTop: '16px', marginTop: 'auto' }}>
                                     <div className="pagination-info" style={{ fontSize: '13px', color: '#6b7280', fontWeight: '500' }}>
                                         Showing {(activityPage - 1) * activitiesPerPage + 1} to {Math.min(activityPage * activitiesPerPage, activeRecentActivities.length)} of {activeRecentActivities.length} updates
                                     </div>
@@ -758,25 +718,14 @@ const FarmerDashboard = ({ userRole, onRoleChange, onLogout }) => {
                             <div className="card-header-main">
                                 <h3 className="card-title"><ClipboardCheck size={18} /> Registry Completion Status</h3>
                                 <div className="registry-dropdown-container" ref={registryDropdownRef}>
-                                    <div className="compact-date-select-container" onClick={() => setShowRegistryDropdown(!showRegistryDropdown)} style={{ cursor: 'pointer', padding: '0 12px', gap: '8px', display: 'flex', alignItems: 'center', width: '220px' }}>
-                                        <Activity size={18} className="text-gray" style={{ flexShrink: 0 }} />
-                                        <div className="compact-date-select" style={{ padding: 0, width: 'auto', display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                                    <div className="compact-date-select-container" onClick={() => setShowRegistryDropdown(!showRegistryDropdown)} style={{ cursor: 'pointer' }}>
+                                        <Activity size={18} className="compact-icon text-gray" />
+                                        <div className="compact-date-select" style={{ display: 'flex', alignItems: 'center', minWidth: '140px' }}>
                                             {registryFilter === 'All' ? 'All' :
                                                 registryFilter === 'High' ? <><span className="dot dot-green"></span> High</> :
                                                     registryFilter === 'Medium' ? <><span className="dot dot-yellow"></span> Medium</> :
                                                         <><span className="dot dot-red"></span> Low</>}
                                         </div>
-                                        <ChevronDown
-                                            size={16}
-                                            className={`compact-date-chevron ${showRegistryDropdown ? 'rotated' : ''}`}
-                                            style={{
-                                                transition: 'transform 0.2s',
-                                                transform: showRegistryDropdown ? 'rotate(180deg)' : 'none',
-                                                color: 'var(--text-secondary)',
-                                                flexShrink: 0,
-                                                marginLeft: 'auto'
-                                            }}
-                                        />
                                     </div>
 
                                     {showRegistryDropdown && (
@@ -846,43 +795,46 @@ const FarmerDashboard = ({ userRole, onRoleChange, onLogout }) => {
                         </div>
                     </div>
                 </div>
+                ) : (
+                <WorkflowRouter
+                    portalRole="Farmer"
+                    section={section}
+                    theme={theme}
+                    fallback={
+                        <SectionPlaceholder
+                            title={FARMER_PLACEHOLDER[section].title}
+                            description={FARMER_PLACEHOLDER[section].description}
+                            breadcrumbs={FARMER_PLACEHOLDER[section].breadcrumbs}
+                        />
+                    }
+                />
+                )}
             </main>
 
             <div className="help-widget-container" ref={helpWindowRef}>
                 {isHelpOpen && (
                     <div className="help-popup-window">
                         <div className="help-popup-header">
-                            <h4 className="help-popup-title">Platform Help & Support</h4>
-                            <button className="help-close-btn" onClick={() => setIsHelpOpen(false)}>
-                                <X size={20} />
-                            </button>
+                            <h4 className="help-popup-title">Farmer Registry Help</h4>
                         </div>
                         <div className="help-popup-content">
                             <div className="help-section">
-                                <h5 className="help-section-title">
-                                    <UserPlus size={18} className="help-icon" /> Adding a New Farmer
-                                </h5>
+                                <h5 className="help-section-title">Adding a New Farmer</h5>
                                 <p className="help-section-text">Click "Add New Farmer" and follow the 4-step registration wizard. All fields marked with * are required.</p>
                             </div>
 
                             <div className="help-section">
-                                <h5 className="help-section-title">
-                                    <Search size={18} className="help-icon" /> Searching & Filtering
-                                </h5>
+                                <h5 className="help-section-title">Searching & Filtering</h5>
                                 <p className="help-section-text">Use the search bar to find farmers by ID or name. Apply filters by Region, Woreda, and Status to narrow results.</p>
                             </div>
 
                             <div className="help-section">
-                                <h5 className="help-section-title">
-                                    <Eye size={18} className="help-icon" /> Viewing Farmer Details
-                                </h5>
+                                <h5 className="help-section-title">Viewing Farmer Details</h5>
                                 <p className="help-section-text">Click the action menu (⋮) on any farmer row and select "View" to see complete profile information.</p>
                             </div>
 
                             <div className="help-section">
-                                <h5 className="help-section-title">
-                                    <Printer size={18} className="help-icon" /> Printing ID Cards
-                                </h5>
+                                <h5 className="help-section-title">Printing ID Cards</h5>
                                 <p className="help-section-text">Navigate to the farmer's profile and click "Print ID" to generate a printable ID card.</p>
                             </div>
                         </div>

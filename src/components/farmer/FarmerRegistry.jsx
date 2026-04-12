@@ -6,7 +6,7 @@ import './FarmerRegistry.css';
 import {
     Home, Users, User, MapPin, Bird, Sprout, Mountain, Shield, Download,
     Database, BarChart2, Settings, ChevronDown, Bell, Globe, HelpCircle, Info, Menu,
-    TrendingUp, TrendingDown, Calendar, LogOut, Briefcase, Activity, Server, FileText, CloudRain, Sun, Moon, Languages, UserCircle, Landmark, Building2, LayoutDashboard, FileSpreadsheet, Beef, Wheat, X, History, ClipboardCheck, UserPlus, Search, Eye, Printer, Check, Edit, Trash2, Plus, CheckCircle, Clock, AlertCircle, Map, ShieldCheck, Timer, MoreVertical, Phone, Mail, ArrowUpDown, XCircle, Filter
+    TrendingUp, TrendingDown, Calendar, LogOut, Briefcase, Activity, Server, FileText, CloudRain, Sun, Moon, Languages, UserCircle, Landmark, Building2, LayoutDashboard, FileSpreadsheet, Beef, Wheat, X, History, ClipboardCheck, UserPlus, Search, Eye, Printer, Check, Edit, Trash2, Plus, CheckCircle, Clock, AlertCircle, Map, ShieldCheck, Timer, MoreVertical, Phone, Mail, ArrowUpDown, XCircle, Filter, Smartphone, Layout, Upload, ArrowLeft
 } from 'lucide-react';
 
 // Farmer-specific components
@@ -17,7 +17,14 @@ import TopHeader from '../common/TopHeader';
 import PageHeader from '../common/PageHeader';
 import FarmerRegistrationForm from './FarmerRegistrationForm';
 
-const FarmerRegistry = ({ userRole, onRoleChange, onLogout }) => {
+const FarmerRegistry = ({
+    userRole,
+    onRoleChange,
+    onLogout,
+    overviewPath = '/dashboard/overview',
+    extraSidebar = null,
+    extraSidebarFooter = null,
+}) => {
     const [theme, setTheme] = useState('light');
     const [language, setLanguage] = useState('en');
     const [isHelpOpen, setIsHelpOpen] = useState(false);
@@ -39,6 +46,17 @@ const FarmerRegistry = ({ userRole, onRoleChange, onLogout }) => {
     const [showDownloadOptions, setShowDownloadOptions] = useState(false);
     const [exportMessage, setExportMessage] = useState(null);
     const [activeTab, setActiveTab] = useState('list');
+    const [editingFarmer, setEditingFarmer] = useState(null);
+    const [viewingFarmer, setViewingFarmer] = useState(null);
+    const [activeProfileTab, setActiveProfileTab] = useState('Personal Info');
+    const [showIdPreview, setShowIdPreview] = useState(false);
+    const [showRecordPreview, setShowRecordPreview] = useState(false);
+    const [viewingDocument, setViewingDocument] = useState(null);
+    const [docUploadType, setDocUploadType] = useState('Select Type...');
+    const [docUploadFile, setDocUploadFile] = useState('');
+    const [selectedFileObj, setSelectedFileObj] = useState(null);
+    const [isDocTypeOpen, setIsDocTypeOpen] = useState(false);
+    const fileInputRef = useRef(null);
 
     const regions = ['Addis Ababa', 'Afar', 'Amhara', 'Benishangul-Gumuz', 'Dire Dawa', 'Gambela', 'Harari', 'Oromia', 'Sidama', 'Somali', 'Southern Nations, Nationalities, and Peoples\' Region', 'Tigray'];
     const crops = ['Wheat', 'Sugarcane', 'Rice', 'Maize', 'Vegetables', 'Mustard', 'Bajra', 'Cotton', 'Coconut', 'Groundnut'];
@@ -57,7 +75,9 @@ const FarmerRegistry = ({ userRole, onRoleChange, onLogout }) => {
             if (agriFilterRef.current && !agriFilterRef.current.contains(event.target)) setAgriFilterOpen(false);
             if (statusFilterRef.current && !statusFilterRef.current.contains(event.target)) setStatusFilterOpen(false);
             if (kisanFilterRef.current && !kisanFilterRef.current.contains(event.target)) setKisanFilterOpen(false);
+            if (downloadMenuRef.current && !downloadMenuRef.current.contains(event.target)) setShowDownloadOptions(false);
             if (!event.target.closest('.actions-col')) setOpenActionMenuId(null);
+            if (!event.target.closest('.custom-doc-select-v6')) setIsDocTypeOpen(false);
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -89,7 +109,7 @@ const FarmerRegistry = ({ userRole, onRoleChange, onLogout }) => {
                 name: name,
                 photo: `https://randomuser.me/api/portraits/${isMale ? 'men' : 'women'}/${i % 70}.jpg`,
                 gender: gender,
-                age: `${25 + (i % 40)} YRS`,
+                age: `${25 + (i % 40)} Yrs`,
                 phone: `${phonePrefixes[i % 5]} ${Math.floor(1000000 + Math.random() * 9000000)}`,
                 email: `${first.toLowerCase()}.${last.toLowerCase()}${i}@gmail.com`,
                 kebele: kebeleList[i % kebeleList.length],
@@ -104,7 +124,92 @@ const FarmerRegistry = ({ userRole, onRoleChange, onLogout }) => {
         });
     };
 
-    const [farmers] = useState(generateFarmers());
+    const [farmers, setFarmers] = useState(() => {
+        const savedFarmers = localStorage.getItem('oan_farmers');
+        if (savedFarmers) {
+            try {
+                return JSON.parse(savedFarmers);
+            } catch (e) {
+                console.error("Failed to parse saved farmers", e);
+                return generateFarmers();
+            }
+        }
+        const initialFarmers = generateFarmers();
+        localStorage.setItem('oan_farmers', JSON.stringify(initialFarmers));
+        return initialFarmers;
+    });
+
+    // Save to localStorage whenever farmers change
+    useEffect(() => {
+        localStorage.setItem('oan_farmers', JSON.stringify(farmers));
+    }, [farmers]);
+
+    const handleNewRegistration = (newReg) => {
+        // Map the form data to the registry list item structure
+        // This simulates an API POST request and local state update
+
+        if (editingFarmer) {
+            // Handle Edit
+            const updatedFarmers = farmers.map(f => {
+                if (f.id === editingFarmer.id) {
+                    return {
+                        ...f,
+                        ...newReg,
+                        name: newReg.fullNameLatin || newReg.fullNameAmharic,
+                        photo: newReg.photoUrl || f.photo,
+                        phone: newReg.mobileNumber,
+                        email: newReg.email || f.email,
+                        acres: `${newReg.landHoldings || 0} Acres`,
+                        crops: newReg.agricultureType || [],
+                        age: newReg.dob ? `${new Date().getFullYear() - new Date(newReg.dob).getFullYear()} Yrs` : f.age
+                    };
+                }
+                return f;
+            });
+            setFarmers(updatedFarmers);
+        } else {
+            // Handle New Registration
+            const nextId = farmers.length > 0 ?
+                Math.max(...farmers.map(f => parseInt(f.id.split('-').pop()) || 0)) + 1 : 1;
+
+            const newEntry = {
+                ...newReg,
+                id: `OAN-FR-${nextId.toString().padStart(3, '0')}`,
+                name: newReg.fullNameLatin || newReg.fullNameAmharic,
+                photo: newReg.photoUrl || `https://randomuser.me/api/portraits/lego/${nextId % 10}.jpg`,
+                gender: newReg.gender,
+                age: newReg.dob ? `${new Date().getFullYear() - new Date(newReg.dob).getFullYear()} Yrs` : "32 Yrs",
+                phone: newReg.mobileNumber,
+                email: newReg.email || `${(newReg.fullNameLatin || "farmer").toLowerCase().replace(/\s/g, '.')}@example.com`,
+                kebele: newReg.kebele,
+                woreda: newReg.woreda,
+                region: newReg.region,
+                registeredDate: new Date().toISOString().split('T')[0],
+                acres: `${newReg.landHoldings || 0} Acres`,
+                crops: newReg.agricultureType || [],
+                status: "Pending",
+                kisanCard: "Active"
+            };
+
+            setFarmers([newEntry, ...farmers]);
+        }
+
+        setActiveTab('list');
+        // Clear search to show the new entry at the top
+        setSearchTerm('');
+    };
+
+    const handlePrintAction = () => {
+        window.print();
+    };
+
+    const handleDownloadAction = (type, farmer) => {
+        setExportMessage(`Preparing ${type} for ${farmer.name}...`);
+        setTimeout(() => {
+            setExportMessage(`${type} has been downloaded successfully.`);
+            setTimeout(() => setExportMessage(null), 3000);
+        }, 1500);
+    };
 
     const toggleStatusFilter = (status) => {
         if (selectedStatuses.includes(status)) {
@@ -165,6 +270,49 @@ const FarmerRegistry = ({ userRole, onRoleChange, onLogout }) => {
     const currentFarmers = sortedFarmers.slice(indexOfFirstItem, indexOfLastItem);
     const totalPages = Math.ceil(sortedFarmers.length / itemsPerPage);
 
+    const handleDocumentUpload = () => {
+        if (!docUploadFile || docUploadType === 'Select Type...') return;
+
+        let docUrl = 'https://images.unsplash.com/photo-1586717791821-3f44a563cc4c?auto=format&fit=crop&q=80&w=1470';
+
+        if (selectedFileObj) {
+            // Live preview for current session
+            docUrl = URL.createObjectURL(selectedFileObj);
+        } else {
+            // Persistent high-fidelity mockups for all document types
+            if (docUploadType === 'National ID') {
+                docUrl = 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&q=80&w=1074';
+            } else if (docUploadType === 'Land Certificate') {
+                docUrl = 'https://images.unsplash.com/photo-1621905252507-b35242f31fba?auto=format&fit=crop&q=80&w=1470';
+            } else if (docUploadType === 'Family Proof') {
+                docUrl = 'https://images.unsplash.com/photo-1600880212319-7524ebd7558e?auto=format&fit=crop&q=80&w=1470';
+            } else if (docUploadType === 'Agriculture License') {
+                docUrl = 'https://images.unsplash.com/photo-1595113316349-9fa4ee24f884?auto=format&fit=crop&q=80&w=1472';
+            }
+        }
+
+        const newDoc = {
+            id: Date.now(),
+            name: docUploadFile,
+            type: docUploadType,
+            date: new Date().toISOString().split('T')[0],
+            size: '1.2 MB',
+            url: docUrl
+        };
+
+        const updatedFarmer = {
+            ...viewingFarmer,
+            documents: [newDoc, ...(viewingFarmer.documents || [])]
+        };
+
+        const updatedFarmers = farmers.map(f => f.id === viewingFarmer.id ? updatedFarmer : f);
+        setFarmers(updatedFarmers);
+        setViewingFarmer(updatedFarmer);
+        setDocUploadFile('');
+        setSelectedFileObj(null);
+        setDocUploadType('Select Type...');
+    };
+
     const handleSelectAll = (e) => {
         setSelectedFarmers(e.target.checked ? currentFarmers.map(f => f.id) : []);
     };
@@ -173,11 +321,37 @@ const FarmerRegistry = ({ userRole, onRoleChange, onLogout }) => {
         setSelectedFarmers(selectedFarmers.includes(id) ? selectedFarmers.filter(fid => fid !== id) : [...selectedFarmers, id]);
     };
 
+    const handleDownload = (doc) => {
+        if (!doc || !doc.url) return;
+        const link = document.createElement('a');
+        link.href = doc.url;
+        link.download = doc.name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     const requestSort = (key) => {
         setSortConfig({ key, direction: sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc' });
     };
 
-    const handleViewFarmer = (id) => console.log('View', id);
+    const handleViewFarmer = (id) => {
+        const farmerToView = farmers.find(f => f.id === id);
+        if (farmerToView) {
+            setViewingFarmer(farmerToView);
+            setActiveTab('profile');
+            setOpenActionMenuId(null);
+        }
+    };
+
+    const handleEditRegistration = (id) => {
+        const farmerToEdit = farmers.find(f => f.id === id);
+        if (farmerToEdit) {
+            setEditingFarmer(farmerToEdit);
+            setActiveTab('new');
+            setOpenActionMenuId(null);
+        }
+    };
 
     const handleExportCSV = () => {
         setExportMessage({ type: 'info', text: 'Preparing CSV export...' });
@@ -244,11 +418,12 @@ const FarmerRegistry = ({ userRole, onRoleChange, onLogout }) => {
                 </div>
 
                 <nav className="sidebar-nav">
-                    <NavLink to="/dashboard" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                    <NavLink to={overviewPath} end className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                         <Home size={20} />
                         <span>Dashboard</span>
                     </NavLink>
-                    <FarmerSidebar />
+                    {extraSidebar || <FarmerSidebar />}
+                    {extraSidebarFooter}
                 </nav>
             </aside>
 
@@ -265,54 +440,6 @@ const FarmerRegistry = ({ userRole, onRoleChange, onLogout }) => {
                 />
 
                 <div className="content-area">
-                    <style>{`
-                        .registry-tabs-v6-wrapper { padding: 4px 0; }
-                        .registry-tabs-v6 { display: flex; background: #eaeff5; padding: 4px; border-radius: 40px; gap: 4px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.08); height: 48px; align-items: center; }
-                        .registry-tab-v6 { height: 40px; padding: 0 24px; border-radius: 40px; border: none; font-size: 15px; font-weight: 700; cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); color: #475569; background: transparent; white-space: nowrap; display: flex; align-items: center; justify-content: center; }
-                        .registry-tab-v6.active { background: #ffffff; color: #10b981; box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
-                        .registry-tab-v6:hover:not(.active) { color: #1e293b; background: rgba(255,255,255,0.7); }
-                        
-                        .card-header-main-v6 { display: flex; justify-content: space-between; align-items: center; padding: 14px 0px 14px 16px; border-bottom: 1.5px solid #e2e8f0; gap: 16px; background: #ffffff; border-radius: 12px 12px 0 0; }
-                        .card-title-v6 { font-size: 16px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 10px; margin: 0; white-space: nowrap; }
-                        .registry-controls-v6 { display: flex; align-items: center; gap: 12px; flex: 1; justify-content: flex-end; }
-                        
-                        .card-download-wrapper-v6 { position: relative; }
-                        .download-btn-card-v6 { display: flex; align-items: center; gap: 8px; height: 48px; padding: 0 16px; background: #ffffff; color: #10b981; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-                        .download-btn-card-v6:hover { background: #f0fdf4; border-color: #10b981; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(16,185,129,0.1); }
-                        .download-btn-card-v6 .rotated { transform: rotate(180deg); }
-                        .download-btn-card-v6 svg { transition: transform 0.2s; }
-
-                        .download-dropdown-card-v6 { position: absolute; top: calc(100% + 8px); right: 0; background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 6px; min-width: 160px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); z-index: 1000; animation: fadeInTabs 0.2s ease-out; }
-                        .download-item-card-v6 { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; border: none; background: transparent; color: #475569; font-size: 14px; font-weight: 500; cursor: pointer; border-radius: 8px; transition: all 0.2s; }
-                        .download-item-card-v6:hover { background: #f8fafc; color: #1e293b; }
-
-                        .search-wrapper-v6 { position: relative; width: 100%; max-width: 450px; }
-                        .search-icon-v6 { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; }
-                        .search-input-v6 { width: 100%; height: 48px; padding: 0 16px 0 42px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 13px; color: #1e293b; transition: all 0.2s; }
-                        .search-input-v6:focus { outline: none; background-color: #fff; border-color: #10b981; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1); }
-                        .add-farmer-btn-v6 { display: flex; align-items: center; gap: 8px; height: 48px; padding: 0 20px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; white-space: nowrap; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.2); }
-                        .add-farmer-btn-v6:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); }
-
-                        .registry-list-table th, .registry-list-table td { padding: 14px 12px; text-align: left; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
-                        .registry-list-table th:first-child, .registry-list-table td:first-child { padding-left: 16px; }
-                        .registry-list-table th:last-child, .registry-list-table td:last-child { padding-right: 16px; }
-                        .registry-footer-v5 { display: flex; justify-content: space-between; align-items: center; padding: 24px; background-color: white; border-top: 1px solid #f1f5f9; }
-                        .footer-stats-v5 { font-size: 14px; color: #64748b; font-weight: 500; }
-                        .highlight-v5 { color: #1e293b; font-weight: 700; }
-                        .pagination-controls-v5 { display: flex; align-items: center; gap: 12px; }
-                        .pagination-btn-v5 { display: flex; align-items: center; gap: 8px; padding: 8px 16px; border: 1px solid #e2e8f0; background-color: white; color: #475569; font-size: 14px; font-weight: 600; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
-                        .pagination-btn-v5:hover:not(:disabled) { background-color: #f8fafc; border-color: #cbd5e1; }
-                        .pagination-btn-v5:disabled { opacity: 0.5; cursor: not-allowed; }
-                        .pagination-pages-v5 { display: flex; align-items: center; gap: 6px; }
-                        .page-num-v5 { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 8px; background: none; color: #64748b; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
-                        .page-num-v5.active { background-color: #10b981; color: white; border-color: #10b981; }
-                        .page-num-v5:hover:not(.active) { background-color: #f1f5f9; color: #334155; }
-                        tr.selected-row td { background-color: #f0fdfa !important; }
-                        .header-cell-checkbox, .td-cell-checkbox { display: flex; align-items: center; justify-content: center; }
-                        .modern-checkbox-s { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border: 2px solid #cbd5e1; border-radius: 4px; background-color: #fff; cursor: pointer; position: relative; transition: all 0.2s; }
-                        .modern-checkbox-s:checked { background-color: #10b981; border-color: #10b981; }
-                        .modern-checkbox-s:checked::after { content: ''; position: absolute; left: 5px; top: 1px; width: 5px; height: 10px; border: solid white; border-width: 0 2px 2px 0; transform: rotate(45deg); }
-                    `}</style>
                     <PageHeader
                         title="Farmer Registry"
                         subtitle={<>Manage and view <span className="highlight-text">Registered farmers</span> their land holdings, and scheme status.</>}
@@ -322,7 +449,7 @@ const FarmerRegistry = ({ userRole, onRoleChange, onLogout }) => {
                             <div className="registry-tabs-v6-wrapper">
                                 <div className="registry-tabs-v6">
                                     <button
-                                        className={`registry-tab-v6 ${activeTab === 'list' ? 'active' : ''}`}
+                                        className={`registry-tab-v6 ${activeTab === 'list' || activeTab === 'profile' ? 'active' : ''}`}
                                         onClick={() => setActiveTab('list')}
                                     >
                                         Farmer List
@@ -368,7 +495,7 @@ const FarmerRegistry = ({ userRole, onRoleChange, onLogout }) => {
 
 
 
-                                            <button className="add-farmer-btn-v6">
+                                            <button className="add-farmer-btn-v6" onClick={() => setActiveTab('new')}>
                                                 <Plus size={18} />
                                                 <span>Add Farmer</span>
                                             </button>
@@ -403,12 +530,12 @@ const FarmerRegistry = ({ userRole, onRoleChange, onLogout }) => {
                                         <table className="registry-table registry-list-table">
                                             <thead>
                                                 <tr>
-                                                    <th><div className="header-cell-checkbox"><input type="checkbox" className="modern-checkbox-s" onChange={handleSelectAll} checked={currentFarmers.length > 0 && selectedFarmers.length === currentFarmers.length} /></div></th>
-                                                    <th onClick={() => requestSort('id')} className="sortable-col"><div className="header-cell-standard">Farmer ID</div></th>
-                                                    <th><div className="header-cell-standard">Farmer Details</div></th>
-                                                    <th><div className="header-cell-standard">Kebele</div></th>
-                                                    <th><div className="header-cell-standard">Woreda</div></th>
-                                                    <th>
+                                                    <th className="checkbox-col"><div className="header-cell-checkbox"><input type="checkbox" className="modern-checkbox-s" onChange={handleSelectAll} checked={currentFarmers.length > 0 && selectedFarmers.length === currentFarmers.length} /></div></th>
+                                                    <th onClick={() => requestSort('id')} className="id-col sortable-col"><div className="header-cell-standard">Farmer ID</div></th>
+                                                    <th className="details-col"><div className="header-cell-standard">Farmer Details</div></th>
+                                                    <th className="kebele-col"><div className="header-cell-standard">Kebele</div></th>
+                                                    <th className="woreda-col"><div className="header-cell-standard">Woreda</div></th>
+                                                    <th className="region-col">
                                                         <div className="header-cell-standard header-with-filtered-icon">
                                                             <span>Region</span>
                                                             <div className="status-filter-trigger-wrapper" ref={regionFilterRef}>
@@ -425,7 +552,7 @@ const FarmerRegistry = ({ userRole, onRoleChange, onLogout }) => {
                                                             </div>
                                                         </div>
                                                     </th>
-                                                    <th>
+                                                    <th className="agri-col">
                                                         <div className="header-cell-standard header-with-filtered-icon">
                                                             <span>Agriculture Data</span>
                                                             <div className="status-filter-trigger-wrapper" ref={agriFilterRef}>
@@ -442,7 +569,7 @@ const FarmerRegistry = ({ userRole, onRoleChange, onLogout }) => {
                                                             </div>
                                                         </div>
                                                     </th>
-                                                    <th>
+                                                    <th className="status-col">
                                                         <div className="header-cell-standard header-with-filtered-icon">
                                                             <span>Status</span>
                                                             <div className="status-filter-trigger-wrapper" ref={statusFilterRef}>
@@ -458,7 +585,7 @@ const FarmerRegistry = ({ userRole, onRoleChange, onLogout }) => {
                                                             </div>
                                                         </div>
                                                     </th>
-                                                    <th>
+                                                    <th className="kisan-col">
                                                         <div className="header-cell-standard header-with-filtered-icon">
                                                             <span>Kisan Card</span>
                                                             <div className="status-filter-trigger-wrapper" ref={kisanFilterRef}>
@@ -481,9 +608,9 @@ const FarmerRegistry = ({ userRole, onRoleChange, onLogout }) => {
                                                 {currentFarmers.length > 0 ? (
                                                     currentFarmers.map((farmer) => (
                                                         <tr key={farmer.id} className={selectedFarmers.includes(farmer.id) ? 'selected-row' : ''}>
-                                                            <td><div className="td-cell-checkbox"><input type="checkbox" className="modern-checkbox-s" checked={selectedFarmers.includes(farmer.id)} onChange={() => handleSelectFarmer(farmer.id)} /></div></td>
-                                                            <td className="id-col-featured">{farmer.id}</td>
-                                                            <td>
+                                                            <td className="checkbox-col" data-label="Select"><div className="td-cell-checkbox"><input type="checkbox" className="modern-checkbox-s" checked={selectedFarmers.includes(farmer.id)} onChange={() => handleSelectFarmer(farmer.id)} /></div></td>
+                                                            <td className="id-col id-col-featured" data-label="Farmer ID">{farmer.id}</td>
+                                                            <td className="details-col" data-label="Farmer Details">
                                                                 <div className="farmer-details-vertical-stack">
                                                                     <img src={farmer.photo} alt={farmer.name} className="farmer-stack-avatar-top" />
                                                                     <div className="farmer-info-content-v2">
@@ -497,18 +624,18 @@ const FarmerRegistry = ({ userRole, onRoleChange, onLogout }) => {
                                                                     </div>
                                                                 </div>
                                                             </td>
-                                                            <td>{farmer.kebele}</td>
-                                                            <td>{farmer.woreda}</td>
-                                                            <td>{farmer.region}</td>
-                                                            <td><div className="agri-data-stack"><div className="acre-text">{farmer.acres}</div><div className="crop-tags">{farmer.crops.map((c, i) => <span key={i} className="crop-tag-v2">{c}</span>)}</div></div></td>
-                                                            <td><div className={`status-pill-v4 ${farmer.status.toLowerCase()}`}>{farmer.status}</div></td>
-                                                            <td><div className={`kisan-badge-v4 ${farmer.kisanCard.toLowerCase()}`}>{farmer.kisanCard}</div></td>
-                                                            <td className="actions-col">
+                                                            <td className="kebele-col" data-label="Kebele">{farmer.kebele}</td>
+                                                            <td className="woreda-col" data-label="Woreda">{farmer.woreda}</td>
+                                                            <td className="region-col" data-label="Region">{farmer.region}</td>
+                                                            <td className="agri-col" data-label="Agriculture Data"><div className="agri-data-stack"><div className="acre-text">{farmer.acres}</div><div className="crop-tags">{farmer.crops.map((c, i) => <span key={i} className="crop-tag-v2">{c}</span>)}</div></div></td>
+                                                            <td className="status-col" data-label="Status"><div className={`status-pill-v4 ${farmer.status.toLowerCase()}`}>{farmer.status}</div></td>
+                                                            <td className="kisan-col" data-label="Kisan Card"><div className={`kisan-badge-v4 ${farmer.kisanCard.toLowerCase()}`}>{farmer.kisanCard}</div></td>
+                                                            <td className="actions-col" data-label="Actions">
                                                                 <button className="dots-trigger-v5" onClick={() => setOpenActionMenuId(openActionMenuId === farmer.id ? null : farmer.id)}><MoreVertical size={18} /></button>
                                                                 {openActionMenuId === farmer.id && (
                                                                     <div className="action-popup-v5">
                                                                         <button className="action-item-v5" onClick={() => handleViewFarmer(farmer.id)}><Eye size={16} /> View</button>
-                                                                        <button className="action-item-v5"><Edit size={16} /> Edit</button>
+                                                                        <button className="action-item-v5" onClick={() => handleEditRegistration(farmer.id)}><Edit size={16} /> Edit</button>
                                                                     </div>
                                                                 )}
                                                             </td>
@@ -551,13 +678,385 @@ const FarmerRegistry = ({ userRole, onRoleChange, onLogout }) => {
                     )}
 
                     {activeTab === 'new' && (
-                        <FarmerRegistrationForm 
-                            onCancel={() => setActiveTab('list')}
-                            onComplete={() => setActiveTab('list')}
+                        <FarmerRegistrationForm
+                            initialData={editingFarmer}
+                            onCancel={() => {
+                                setEditingFarmer(null);
+                                if (viewingFarmer) {
+                                    setActiveTab('profile');
+                                } else {
+                                    setActiveTab('list');
+                                }
+                            }}
+                            onComplete={(data) => {
+                                handleNewRegistration(data);
+                                setEditingFarmer(null);
+                            }}
                         />
+                    )}
+
+                    {activeTab === 'profile' && viewingFarmer && (
+                        <div className="farmer-profile-container-v6 animation-fadeIn">
+                            <div
+                                className="back-navigator-v6"
+                                onClick={() => {
+                                    setActiveTab('list');
+                                    setViewingFarmer(null);
+                                }}
+                            >
+                                <ArrowLeft size={18} />
+                                <span>Back</span>
+                            </div>
+
+                            {/* Profile Header Card */}
+                            <div className="profile-header-card-v6">
+                                <div className="profile-header-top-v6">
+                                    <div className="profile-main-info-v6">
+                                        <div className="profile-avatar-wrapper-v6">
+                                            <img src={viewingFarmer.photo} alt={viewingFarmer.name} className="profile-avatar-v6" />
+                                        </div>
+                                        <div className="profile-text-content-v6">
+                                            <h2 className="profile-name-v6">{viewingFarmer.name}</h2>
+                                            <div className="profile-subname-v6">Dereje Bekele</div>
+                                            <div className="profile-badges-v6">
+                                                <span className="profile-id-badge-v6">{viewingFarmer.id}</span>
+                                                <span className={`status-pill-v4 ${viewingFarmer.status.toLowerCase()}`}>{viewingFarmer.status}</span>
+                                                <span className="biometric-badge-v6">Biometric Enrolled</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="profile-header-actions-v6">
+                                        <button className="profile-action-btn-v6" onClick={() => setShowRecordPreview(true)}><Eye size={16} /> Full Record Preview</button>
+                                        <button className="profile-action-btn-v6" onClick={() => handleEditRegistration(viewingFarmer.id)}><Edit size={16} /> Edit</button>
+                                        <button className="profile-action-btn-v6" onClick={() => setShowIdPreview(true)}><Printer size={16} /> Print ID</button>
+                                    </div>
+                                </div>
+
+                                <div className="profile-header-stats-v6">
+                                    <div className="header-stat-item-v6">
+                                        <MapPin size={18} className="stat-icon-v6" />
+                                        <div className="stat-details-v6">
+                                            <span className="stat-label-v6">Location</span>
+                                            <span className="stat-value-v6">{viewingFarmer.kebele}, {viewingFarmer.region}</span>
+                                        </div>
+                                    </div>
+                                    <div className="header-stat-item-v6">
+                                        <Calendar size={18} className="stat-icon-v6" />
+                                        <div className="stat-details-v6">
+                                            <span className="stat-label-v6">Registered</span>
+                                            <span className="stat-value-v6">{viewingFarmer.registeredDate}</span>
+                                        </div>
+                                    </div>
+                                    <div className="header-stat-item-v6">
+                                        <Phone size={18} className="stat-icon-v6" />
+                                        <div className="stat-details-v6">
+                                            <span className="stat-label-v6">Phone</span>
+                                            <span className="stat-value-v6">{viewingFarmer.phone}</span>
+                                        </div>
+                                    </div>
+                                    <div className="header-stat-item-v6">
+                                        <Users size={18} className="stat-icon-v6" />
+                                        <div className="stat-details-v6">
+                                            <span className="stat-label-v6">Household</span>
+                                            <span className="stat-value-v6">6 members</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+
+                            {/* Main Content Layout */}
+                            <div className="profile-layout-v6">
+                                <div className="profile-main-pane-v6">
+                                    {/* Tab Switcher Integrated with Content to match width */}
+                                    <div className="profile-tab-switcher-v6">
+                                        {['Personal Info', 'Household & Farming Profile', 'Documents', 'Activity Log'].map(tab => (
+                                            <button
+                                                key={tab}
+                                                className={`profile-tab-btn-v6 ${activeProfileTab === tab ? 'active' : ''}`}
+                                                onClick={() => setActiveProfileTab(tab)}
+                                            >
+                                                {tab}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    <div className="pane-card-v6">
+                                        {activeProfileTab === 'Personal Info' && (
+                                            <>
+                                                <div className="profile-section-v6">
+                                                    <h3 className="pane-card-title-v6">Personal Information</h3>
+                                                    <div className="profile-data-grid-v6">
+                                                        <div className="data-item-v6"><span className="data-label-v6">Full Name (Amharic)</span><span className="data-value-v6">{viewingFarmer.fullNameAmharic || "—"}</span></div>
+                                                        <div className="data-item-v6"><span className="data-label-v6">Full Name (Latin)</span><span className="data-value-v6">{viewingFarmer.name || "—"}</span></div>
+                                                        <div className="data-item-v6"><span className="data-label-v6">Gender</span><span className="data-value-v6">{viewingFarmer.gender || "—"}</span></div>
+                                                        <div className="data-item-v6"><span className="data-label-v6">Date of Birth</span><span className="data-value-v6">{viewingFarmer.dob || viewingFarmer.dateOfBirth || "—"}</span></div>
+                                                        <div className="data-item-v6"><span className="data-label-v6">Age</span><span className="data-value-v6">{viewingFarmer.age || "—"}</span></div>
+                                                        <div className="data-item-v6"><span className="data-label-v6">Primary Mobile</span><span className="data-value-v6">{viewingFarmer.phone || viewingFarmer.mobileNumber || "—"}</span></div>
+                                                        <div className="data-item-v6"><span className="data-label-v6">Secondary Mobile</span><span className="data-value-v6">{viewingFarmer.alternateMobileNumber || "—"}</span></div>
+                                                        <div className="data-item-v6"><span className="data-label-v6">Email Address</span><span className="data-value-v6">{viewingFarmer.email || "—"}</span></div>
+                                                        <div className="data-item-v6"><span className="data-label-v6">Social Media</span><span className="data-value-v6">{viewingFarmer.socialMediaLink || "—"}</span></div>
+                                                        <div className="data-item-v6"><span className="data-label-v6">National ID</span><span className="data-value-v6">{viewingFarmer.nationalId || "—"}</span></div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="profile-section-v6 mt-32">
+                                                    <h3 className="pane-card-title-v6">Location Information</h3>
+                                                    <div className="profile-data-grid-v6">
+                                                        <div className="data-item-v6"><span className="data-label-v6">Region</span><span className="data-value-v6">{viewingFarmer.region || "—"}</span></div>
+                                                        <div className="data-item-v6"><span className="data-label-v6">Woreda</span><span className="data-value-v6">{viewingFarmer.woreda || "—"}</span></div>
+                                                        <div className="data-item-v6"><span className="data-label-v6">Kebele</span><span className="data-value-v6">{viewingFarmer.kebele || "—"}</span></div>
+                                                        <div className="data-item-v6"><span className="data-label-v6">Village</span><span className="data-value-v6">{viewingFarmer.village || "—"}</span></div>
+                                                        <div className="data-item-v6"><span className="data-label-v6">GPS Coordinates</span><span className="data-value-v6">{viewingFarmer.latitude && viewingFarmer.longitude ? `${viewingFarmer.latitude}, ${viewingFarmer.longitude}` : "—"}</span></div>
+                                                    </div>
+                                                </div>
+                                            </>
+                                        )}
+
+                                        {activeProfileTab === 'Household & Farming Profile' && (
+                                            <>
+                                                <div className="profile-section-v6">
+                                                    <h3 className="pane-card-title-v6">Household & Registration Status</h3>
+                                                    <div className="profile-data-grid-v6">
+                                                        <div className="data-item-v6"><span className="data-label-v6">Head of Household</span><span className="data-value-v6">{viewingFarmer.headOfHousehold ? "Yes (Head)" : "No"}</span></div>
+                                                        <div className="data-item-v6"><span className="data-label-v6">Household Size</span><span className="data-value-v6">{viewingFarmer.familyMembers || viewingFarmer.householdSize || "6 members"}</span></div>
+                                                        <div className="data-item-v6"><span className="data-label-v6">Farmer Card Status</span><span className="data-value-v6"><span className={`status-badge-v6 ${viewingFarmer.status?.toLowerCase() === 'active' ? 'verified' : 'pending'}`}>{viewingFarmer.farmerCardStatus || "Active"}</span></span></div>
+                                                        <div className="data-item-v6"><span className="data-label-v6">Registration Status</span><span className="data-value-v6"><span className={`status-badge-v6 ${viewingFarmer.status?.toLowerCase() === 'verified' ? 'verified' : 'pending'}`}>{viewingFarmer.status || "Pending"}</span></span></div>
+                                                        <div className="data-item-v6"><span className="data-label-v6">Dwelling Type</span><span className="data-value-v6">{viewingFarmer.dwellingType || "Semi-Permanent"}</span></div>
+                                                        <div className="data-item-v6"><span className="data-label-v6">Mobile Ownership</span><span className="data-value-v6">{viewingFarmer.mobileOwnership || "Yes (Smart Phone)"}</span></div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="profile-section-v6 mt-32">
+                                                    <h3 className="pane-card-title-v6">Farming Profile & Economics</h3>
+                                                    <div className="profile-data-grid-v6">
+                                                        <div className="data-item-v6"><span className="data-label-v6">Primary Farming Activity</span><span className="data-value-v6">{viewingFarmer.primaryActivity || viewingFarmer.primaryFarmingActivity || "Mixed Farming"}</span></div>
+                                                        <div className="data-item-v6"><span className="data-label-v6">Total Agri (Acres)</span><span className="data-value-v6">{viewingFarmer.landHoldings || viewingFarmer.acres || "3.5"}</span></div>
+                                                        <div className="data-item-v6"><span className="data-label-v6">Annual Income Value</span><span className="data-value-v6">{viewingFarmer.incomeValue ? `${viewingFarmer.incomeValue} ${viewingFarmer.incomeCurrency?.code || 'ETB'}` : "120,000 ETB"}</span></div>
+                                                        <div className="data-item-v6"><span className="data-label-v6">Distance to Market</span><span className="data-value-v6">{viewingFarmer.distanceToMarket || "4.5 km"}</span></div>
+
+                                                        <div className="data-item-v6 full-width-v6 mt-8">
+                                                            <span className="data-label-v6">Cooperative Membership</span>
+                                                            <div className="tag-cloud-v6 mt-8">
+                                                                {(viewingFarmer.cooperatives || ['Urban Vegetable Growers', 'Grain Supply Union']).map(c => (
+                                                                    <span key={c} className="tag-item-v6">{c}</span>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="data-item-v6 full-width-v6 mt-8">
+                                                            <span className="data-label-v6">Agriculture Type</span>
+                                                            <div className="tag-cloud-v6 mt-8">
+                                                                {(viewingFarmer.agricultureType || ['Millet', 'Maize', 'Cotton', 'Sugarcane', 'Mustard', 'Vegetables']).map(c => (
+                                                                    <span key={c} className="tag-item-v6 secondary">{c}</span>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </>
+                                        )}
+
+                                        {activeProfileTab === 'Documents' && (
+                                            <>
+                                                <div className="doc-header-v6">
+                                                    <h3 className="pane-card-title-v6 no-margin">Uploaded Documents</h3>
+                                                    <div className="doc-upload-controls-v6">
+                                                        <div className="custom-doc-select-v6" style={{ position: 'relative' }}>
+                                                            <div
+                                                                className={`doc-type-trigger-v6 ${isDocTypeOpen ? 'open' : ''}`}
+                                                                onClick={() => setIsDocTypeOpen(!isDocTypeOpen)}
+                                                            >
+                                                                <span>{docUploadType}</span>
+                                                                <ChevronDown size={16} className={`chevron-v6 ${isDocTypeOpen ? 'open' : ''}`} />
+                                                            </div>
+                                                            {isDocTypeOpen && (
+                                                                <div className="doc-type-list-v6 animation-fadeInUp-v6">
+                                                                    {['National ID', 'Land Certificate', 'Family Proof', 'Agriculture License'].map(type => (
+                                                                        <div
+                                                                            key={type}
+                                                                            className="doc-type-item-v6"
+                                                                            onClick={() => {
+                                                                                setDocUploadType(type);
+                                                                                setIsDocTypeOpen(false);
+                                                                            }}
+                                                                        >
+                                                                            {type}
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="upload-composite-v6">
+                                                            <input
+                                                                type="file"
+                                                                ref={fileInputRef}
+                                                                style={{ display: 'none' }}
+                                                                onChange={(e) => {
+                                                                    if (e.target.files && e.target.files[0]) {
+                                                                        setDocUploadFile(e.target.files[0].name);
+                                                                        setSelectedFileObj(e.target.files[0]);
+                                                                    }
+                                                                }}
+                                                            />
+                                                            <div className="composite-input-v6" onClick={() => fileInputRef.current?.click()}>
+                                                                <Upload size={14} style={{ marginRight: '10px', opacity: 0.6 }} />
+                                                                <span style={{ color: docUploadFile ? '#1e293b' : '#64748b', fontSize: '14px', fontWeight: docUploadFile ? '600' : '400' }}>
+                                                                    {docUploadFile || "Choose photo..."}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+
+                                                        <button
+                                                            className="doc-submit-btn-v6"
+                                                            onClick={handleDocumentUpload}
+                                                            disabled={!docUploadFile || docUploadType === 'Select Type...'}
+                                                        >
+                                                            Submit
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                <div className="document-list-v6">
+                                                    {(viewingFarmer.documents || [
+                                                        { id: 1, name: 'National_ID_Scan.png', date: '2024-02-01', size: '1.2 MB', type: 'National ID', url: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&q=80&w=1074' },
+                                                        { id: 2, name: 'Land_Holding_Cert.png', date: '2024-01-15', size: '3.4 MB', type: 'Land Certificate', url: 'https://images.unsplash.com/photo-1621905252507-b35242f31fba?auto=format&fit=crop&q=80&w=1470' }
+                                                    ]).map(doc => (
+                                                        <div className="doc-item-v6" key={doc.id}>
+                                                            {doc.type === 'National ID' ? <FileText size={20} className="doc-icon-v6" /> : <Layout size={20} className="doc-icon-v6" />}
+                                                            <div className="doc-info-v6">
+                                                                <span className="doc-name-v6">{doc.name}</span>
+                                                                <span className="doc-meta-v6">Uploaded on: {doc.date} • {doc.size}</span>
+                                                            </div>
+                                                            <div className="doc-actions-v6 horizontal">
+                                                                <button
+                                                                    className="doc-action-btn-v6 view-text"
+                                                                    onClick={() => setViewingDocument(doc)}
+                                                                >
+                                                                    <Eye size={16} />
+                                                                </button>
+                                                                <button
+                                                                    className="doc-action-btn-v6 download-text"
+                                                                    onClick={() => handleDownload(doc)}
+                                                                >
+                                                                    <Download size={16} />
+                                                                </button>
+                                                                <button
+                                                                    className="doc-action-btn-v6 delete-text"
+                                                                    onClick={() => {
+                                                                        const updatedDocs = (viewingFarmer.documents || []).filter(d => d.id !== doc.id);
+                                                                        const updatedFarmer = { ...viewingFarmer, documents: updatedDocs };
+                                                                        const updatedFarmers = farmers.map(f => f.id === viewingFarmer.id ? updatedFarmer : f);
+                                                                        setFarmers(updatedFarmers);
+                                                                        setViewingFarmer(updatedFarmer);
+                                                                    }}
+                                                                >
+                                                                    <Trash2 size={16} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </>
+                                        )}
+
+                                        {activeProfileTab === 'Activity Log' && (
+                                            <>
+                                                <h3 className="pane-card-title-v6">Activity Log</h3>
+                                                <div className="timeline-v6">
+                                                    <div className="timeline-item-v6">
+                                                        <div className="timeline-dot-v6"></div>
+                                                        <div className="timeline-content-v6">
+                                                            <span className="timeline-date-v6">2024-04-09 10:45 AM</span>
+                                                            <span className="timeline-title-v6">Biometric Enrollment Completed</span>
+                                                            <span className="timeline-desc-v6">Official: Abera Tadesse (ID: OAN-FR-1347)</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="timeline-item-v6">
+                                                        <div className="timeline-dot-v6"></div>
+                                                        <div className="timeline-content-v6">
+                                                            <span className="timeline-date-v6">2024-04-08 09:20 AM</span>
+                                                            <span className="timeline-title-v6">Profile Created</span>
+                                                            <span className="timeline-desc-v6">Self-registration via Mobile App</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="profile-side-pane-v6">
+                                    <div className="pane-card-v6">
+                                        <h3 className="pane-card-title-v6">Summary</h3>
+                                        <div className="summary-list-v6">
+                                            <div className="summary-item-v6">
+                                                <div className="summary-icon-v6 green"><MapPin size={20} /></div>
+                                                <div className="summary-details-v6">
+                                                    <span className="summary-label-v6">Total Land</span>
+                                                    <span className="summary-value-v6">3.2 ha</span>
+                                                </div>
+                                            </div>
+                                            <div className="summary-item-v6">
+                                                <div className="summary-icon-v6 orange"><Activity size={20} /></div>
+                                                <div className="summary-details-v6">
+                                                    <span className="summary-label-v6">Livestock</span>
+                                                    <span className="summary-value-v6">6 animals</span>
+                                                </div>
+                                            </div>
+                                            <div className="summary-item-v6">
+                                                <div className="summary-icon-v6 green"><Wheat size={20} /></div>
+                                                <div className="summary-details-v6">
+                                                    <span className="summary-label-v6">Active Crops</span>
+                                                    <span className="summary-value-v6">3 crops</span>
+                                                </div>
+                                            </div>
+                                            <div className="summary-item-v6">
+                                                <div className="summary-icon-v6 blue"><Activity size={20} /></div>
+                                                <div className="summary-details-v6">
+                                                    <span className="summary-label-v6">Last Updated</span>
+                                                    <span className="summary-value-v6">2024-02-10</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     )}
                 </div>
             </main>
+
+            {/* Document Viewer Modal */}
+            {viewingDocument && (
+                <div className="doc-modal-overlay-v6" onClick={() => setViewingDocument(null)}>
+                    <div className="doc-modal-window-v6" onClick={(e) => e.stopPropagation()}>
+                        <div className="doc-modal-header-v6">
+                            <h3 className="doc-modal-title-v6">{viewingDocument.name}</h3>
+                            <div className="doc-modal-controls-v6">
+                                <button
+                                    className="doc-modal-btn-v6"
+                                    onClick={() => handleDownload(viewingDocument)}
+                                >
+                                    <Download size={18} /> Download
+                                </button>
+                                <button className="doc-modal-close-v6" onClick={() => setViewingDocument(null)}><X size={20} /></button>
+                            </div>
+                        </div>
+                        <div className="doc-modal-body-v6">
+                            <img
+                                src={viewingDocument.url}
+                                alt={viewingDocument.name}
+                                className="doc-preview-img-v6"
+                                onError={(e) => {
+                                    e.target.src = 'https://images.unsplash.com/photo-1586717791821-3f44a563cc4c?auto=format&fit=crop&q=80&w=1470';
+                                }}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="help-widget-container" ref={helpWindowRef}>
                 {isHelpOpen && (
@@ -577,9 +1076,194 @@ const FarmerRegistry = ({ userRole, onRoleChange, onLogout }) => {
                         </div>
                     </div>
                 )}
-                <div className={`floating-help ${isHelpOpen ? 'open' : ''}`} onClick={() => setIsHelpOpen(!isHelpOpen)}>
-                    {isHelpOpen ? <X size={24} /> : <Info size={24} />}
-                </div>
+                {/* ID Card Preview Modal */}
+                {showIdPreview && (
+                    <div className="modal-overlay-v6" onClick={() => setShowIdPreview(false)}>
+                        <div className="id-preview-modal-v6" onClick={e => e.stopPropagation()}>
+                            <div className="id-modal-header-v6">
+                                <div className="header-left-v6">
+                                    <h2 className="id-modal-title-v6">Farmer ID Card Preview</h2>
+                                    <p className="id-modal-subtitle-v6">OAN Card for {viewingFarmer.name}</p>
+                                </div>
+                                <div className="header-actions-v6">
+                                    <button
+                                        className="id-action-btn-v6 secondary"
+                                        onClick={() => handleDownloadAction("ID Card PDF", viewingFarmer)}
+                                    >
+                                        <Download size={18} /> Download PDF
+                                    </button>
+                                    <button
+                                        className="id-action-btn-v6 primary"
+                                        onClick={handlePrintAction}
+                                    >
+                                        <Printer size={18} /> Print
+                                    </button>
+                                    <button className="id-close-btn-v6" onClick={() => setShowIdPreview(false)}><X size={20} /></button>
+                                </div>
+                            </div>
+
+                            <div className="id-preview-content-v6">
+                                <div className="id-preview-container-v6">
+                                    <div className="id-preview-section-v6">
+                                        <span className="preview-label-v6">Front</span>
+                                        <div className="farmer-id-card-front-v6">
+                                            <div className="id-card-header-v6">
+                                                <div className="id-logo-box-v6"><Wheat size={20} color="#ffffff" /></div>
+                                                <div className="id-org-info-v6">
+                                                    <span className="id-country-v6">Ethiopia</span>
+                                                    <span className="id-platform-v6">OpenAgriNet</span>
+                                                </div>
+                                            </div>
+                                            <div className="id-card-body-v6">
+                                                <div className="id-card-label-v6">Full Name</div>
+                                                <div className="id-field-value-v6">{viewingFarmer.name}</div>
+                                                <div className="id-field-value-am-v6">ደሬጄ በቀለ {viewingFarmer.name}</div>
+
+                                                <div className="id-card-grid-v6">
+                                                    <div>
+                                                        <div className="id-card-label-v6">Farmer ID</div>
+                                                        <div className="id-card-small-value-v6">{viewingFarmer.id}</div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="id-card-label-v6">Registered</div>
+                                                        <div className="id-card-small-value-v6">{viewingFarmer.registeredDate}</div>
+                                                    </div>
+                                                </div>
+                                                <div className="id-location-info-v6">
+                                                    {viewingFarmer.region} • {viewingFarmer.woreda} • {viewingFarmer.kebele}
+                                                </div>
+                                            </div>
+                                            {/* Decorative Pattern Icon */}
+                                            <div className="id-bg-pattern-v6"><Wheat size={180} /></div>
+                                        </div>
+                                    </div>
+
+                                    <div className="id-preview-section-v6">
+                                        <span className="preview-label-v6">Back</span>
+                                        <div className="farmer-id-card-back-v6">
+                                            <div className="qr-container-v6">
+                                                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${viewingFarmer.id}`} alt="QR Code" className="id-qr-v6" />
+                                                <div className="qr-id-text-v6">{viewingFarmer.id}</div>
+                                            </div>
+                                            <div className="qr-instruction-v6">Scan QR code to view digital profile</div>
+
+                                            <div className="id-back-footer-v6">
+                                                <div className="footer-orgs-v6">
+                                                    <div className="footer-org-v6">
+                                                        <strong>OpenAgriNet</strong>
+                                                        <span>Digital Agriculture</span>
+                                                    </div>
+                                                    <div className="footer-org-v6 text-right">
+                                                        <strong>Ministry of Agriculture</strong>
+                                                        <span>Federal Republic of Ethiopia</span>
+                                                    </div>
+                                                </div>
+                                                <div className="footer-stamp-v6"><Wheat size={16} /></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+
+                                <div className="id-print-instructions-v6 mt-32">
+                                    <h4 className="instructions-title-v6">Print Instructions</h4>
+                                    <ul className="instructions-list-v6">
+                                        <li>Use CR80 card stock (85.6mm × 53.98mm / 3.370" × 2.125")</li>
+                                        <li>Print at 300 DPI for optimal quality</li>
+                                        <li>Use color printer for best results</li>
+                                        <li>Consider laminating for durability</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                {/* Full Record Preview Modal (Step 4 Style) */}
+                {showRecordPreview && (
+                    <div className="modal-overlay-v6" onClick={() => setShowRecordPreview(false)}>
+                        <div className="id-preview-modal-v6 record-preview-modal-v6" onClick={e => e.stopPropagation()}>
+                            <div className="id-modal-header-v6">
+                                <div className="header-left-v6">
+                                    <h2 className="id-modal-title-v6">Farmer Registration Record</h2>
+                                    <p className="id-modal-subtitle-v6">Full profile preview for {viewingFarmer.name}</p>
+                                </div>
+                                <div className="header-actions-v6">
+                                    <button
+                                        className="id-action-btn-v6 secondary"
+                                        onClick={() => handleDownloadAction("Record PDF", viewingFarmer)}
+                                    >
+                                        <Download size={18} /> Download PDF
+                                    </button>
+                                    <button
+                                        className="id-action-btn-v6 primary"
+                                        onClick={handlePrintAction}
+                                    >
+                                        <Printer size={18} /> Print Record
+                                    </button>
+                                    <button className="id-close-btn-v6" onClick={() => setShowRecordPreview(false)}><X size={20} /></button>
+                                </div>
+                            </div>
+
+                            <div className="id-preview-content-v6">
+                                <div className="preview-record-grid-v6">
+                                    {/* Personal Info Section */}
+                                    <div className="preview-section-card-v6">
+                                        <div className="section-head-v6"><User size={18} /> <span>Personal Information</span></div>
+                                        <div className="preview-data-list-v6">
+                                            <div className="p-data-item-v6"><span>Amharic Name</span><strong>ደሬጄ በቀለ {viewingFarmer.name}</strong></div>
+                                            <div className="p-data-item-v6"><span>Gender</span><strong>{viewingFarmer.gender}</strong></div>
+                                            <div className="p-data-item-v6"><span>Age</span><strong>{viewingFarmer.age}</strong></div>
+                                            <div className="p-data-item-v6"><span>Mobile</span><strong>{viewingFarmer.phone}</strong></div>
+                                            <div className="p-data-item-v6"><span>National ID</span><strong>{viewingFarmer.nationalId || "ETH-7728-29"}</strong></div>
+                                        </div>
+                                    </div>
+
+                                    {/* Location Info Section */}
+                                    <div className="preview-section-card-v6">
+                                        <div className="section-head-v6"><MapPin size={18} /> <span>Location Details</span></div>
+                                        <div className="preview-data-list-v6">
+                                            <div className="p-data-item-v6"><span>Region</span><strong>{viewingFarmer.region}</strong></div>
+                                            <div className="p-data-item-v6"><span>Woreda</span><strong>{viewingFarmer.woreda}</strong></div>
+                                            <div className="p-data-item-v6"><span>Kebele</span><strong>{viewingFarmer.kebele}</strong></div>
+                                            <div className="p-data-item-v6"><span>Farm Coordinates</span><strong>9.0123 / 38.7612</strong></div>
+                                        </div>
+                                    </div>
+
+                                    {/* Household & Farming Section */}
+                                    <div className="preview-section-card-v6 full-width-preview-v6">
+                                        <div className="section-head-v6"><Users size={18} /> <span>Household & Farming Profile</span></div>
+                                        <div className="preview-data-grid-cols-3-v6">
+                                            <div className="p-data-item-v6"><span>Head of Household</span><strong>Yes</strong></div>
+                                            <div className="p-data-item-v6"><span>Household Size</span><strong>6 members</strong></div>
+                                            <div className="p-data-item-v6"><span>Dwelling Type</span><strong>Semi-Permanent</strong></div>
+                                            <div className="p-data-item-v6"><span>Total Agri (Acres)</span><strong>3.5</strong></div>
+                                            <div className="p-data-item-v6"><span>Farming Activity</span><strong>Mixed Farming</strong></div>
+                                            <div className="p-data-item-v6"><span>Annual Income</span><strong>120,000 ETB</strong></div>
+                                        </div>
+                                        <div className="preview-tags-section-v6 mt-16">
+                                            <div className="p-data-item-v6 mb-8"><span>Agriculture Types</span></div>
+                                            <div className="tag-cloud-v6">
+                                                {['Millet', 'Maize', 'Cotton', 'Sugarcane', 'Mustard', 'Vegetables'].map(t => (
+                                                    <span key={t} className="tag-item-v6 secondary">{t}</span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Status Section */}
+                                    <div className="preview-section-card-v6 full-width-preview-v6 highlight-section-v6">
+                                        <div className="section-head-v6"><ShieldCheck size={18} /> <span>System & Compliance Status</span></div>
+                                        <div className="preview-data-grid-cols-3-v6">
+                                            <div className="p-data-item-v6"><span>Farmer Card</span><span className="status-badge-v6 verified">Active</span></div>
+                                            <div className="p-data-item-v6"><span>Reg. Status</span><span className="status-badge-v6 pending">Pending</span></div>
+                                            <div className="p-data-item-v6"><span>Biometric</span><strong>Enrolled</strong></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
