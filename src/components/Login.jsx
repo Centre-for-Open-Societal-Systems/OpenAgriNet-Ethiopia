@@ -6,8 +6,6 @@ import {
   Building2,
   ShieldCheck,
   Search,
-  Eye,
-  EyeOff,
   ChevronRight,
   Check,
   HelpCircle,
@@ -61,9 +59,6 @@ const roles = [
 const Login = ({ onLogin }) => {
   const navigate = useNavigate();
   const [selectedRole, setSelectedRole] = useState('farmer');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const helpWindowRef = useRef(null);
 
@@ -213,7 +208,8 @@ const Login = ({ onLogin }) => {
           </div>
 
           <form className="sign-in-form" onSubmit={handleSubmit}>
-            <div className="input-group">
+            {/* Username / password not used currently — Keycloak handles auth after Sign In */}
+            {/* <div className="input-group">
               <label htmlFor="email">Email or mobile number</label>
               <input
                 type="text"
@@ -246,7 +242,7 @@ const Login = ({ onLogin }) => {
 
             <div className="forgot-password-row">
               <a href="#">Forgot password?</a>
-            </div>
+            </div> */}
 
             <div className="form-actions-row">
               <button type="submit" className="login-submit-btn">
