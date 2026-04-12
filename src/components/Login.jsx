@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import keycloak from "../keycloak";
+// import keycloak from "../keycloak";
 import {
   Key,
   Building2,
@@ -88,7 +88,7 @@ const Login = ({ onLogin }) => {
     e.preventDefault();
 
     try {
-      await keycloak.login();
+      onLogin(); // ✅ use App function
     } catch (err) {
       console.error("Login failed", err);
     }
@@ -303,4 +303,3 @@ const Login = ({ onLogin }) => {
 };
 
 export default Login;
-

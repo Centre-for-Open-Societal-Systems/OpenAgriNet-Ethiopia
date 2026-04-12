@@ -1,8 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, Navigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
 import './SuperUserDashboard.css';
 import '../common/ContentArea.css';
-import '../common/SectionPlaceholder.css';
 import {
     Home, Users, User, MapPin, Bird, Sprout, Mountain, Shield, Download,
     Database, BarChart2, Settings, ChevronDown, Bell, Globe, HelpCircle,
@@ -14,115 +12,9 @@ import SuperUserSidebar from './SuperUserSidebar';
 import SuperUserStats from './SuperUserStats';
 import ATILogo from '../ATILogo';
 import TopHeader from '../common/TopHeader';
-import SidebarNavLink from '../common/SidebarNavLink';
-import SectionPlaceholder from '../common/SectionPlaceholder';
-import WorkflowRouter from '../workflow/WorkflowRouter';
-
-const SUPER_SECTIONS = new Set([
-  'overview',
-  'farmer-registry',
-  'livestock-registry',
-  'crop-registry',
-  'land-registry',
-  'soil-registry',
-  'seed-registry',
-  'finance-portal',
-  'crop-master',
-  'location-master',
-  'livestock-master',
-  'data-integration-hub',
-  'administration',
-  'system-health',
-  'tenant-management',
-  'global-insights',
-  'system-config',
-]);
-
-const SUPER_PLACEHOLDER = {
-  'farmer-registry': {
-    title: 'Farmer Registry',
-    description: 'Super-user visibility across all tenants and override workflows.',
-    breadcrumbs: ['Farmer Registry'],
-  },
-  'livestock-registry': {
-    title: 'Livestock Registry',
-    description: 'National livestock pipeline and integration status.',
-    breadcrumbs: ['Livestock Registry'],
-  },
-  'crop-registry': {
-    title: 'Crop Registry',
-    description: 'Crop data lineage, APIs, and bulk correction tools.',
-    breadcrumbs: ['Crop Registry'],
-  },
-  'finance-portal': {
-    title: 'Finance Portal',
-    description: 'System-wide finance integrations and consent policy.',
-    breadcrumbs: ['Finance Portal'],
-  },
-  'land-registry': {
-    title: 'Land Registry',
-    description: 'National land parcels.',
-    breadcrumbs: ['Land Registry'],
-  },
-  'soil-registry': {
-    title: 'Soil Registry',
-    description: 'Soil analytics.',
-    breadcrumbs: ['Soil Registry'],
-  },
-  'seed-registry': {
-    title: 'Seed Registry',
-    description: 'Seed traceability.',
-    breadcrumbs: ['Seed Registry'],
-  },
-  'crop-master': {
-    title: 'Crop Master',
-    description: 'Crop and seed master catalogue.',
-    breadcrumbs: ['Master Data', 'Crop Master'],
-  },
-  'location-master': {
-    title: 'Location Master',
-    description: 'Administrative location master catalogue.',
-    breadcrumbs: ['Master Data', 'Location Master'],
-  },
-  'livestock-master': {
-    title: 'Livestock Master',
-    description: 'Livestock master catalogue.',
-    breadcrumbs: ['Master Data', 'Livestock Master'],
-  },
-  'data-integration-hub': {
-    title: 'Data Integration Hub',
-    description: 'Connectors, schedules, and ETL health for external datasets (EIAR, ePhyto, banks).',
-    breadcrumbs: ['Data Integration Hub'],
-  },
-  administration: {
-    title: 'Administration',
-    description: 'Realms, roles, tenants, and security policies.',
-    breadcrumbs: ['Administration'],
-  },
-  'system-health': {
-    title: 'System Health & Logs',
-    description: 'Uptime, latency, error budgets, and centralized logs.',
-    breadcrumbs: ['System Health & Logs'],
-  },
-  'tenant-management': {
-    title: 'Tenant Management',
-    description: 'Onboard banks and agencies, quotas, and feature entitlements.',
-    breadcrumbs: ['Tenant Management'],
-  },
-  'global-insights': {
-    title: 'Global Insights',
-    description: 'Cross-cutting analytics and executive dashboards.',
-    breadcrumbs: ['Global Insights'],
-  },
-  'system-config': {
-    title: 'System Config',
-    description: 'Environment settings, maintenance windows, and version matrix.',
-    breadcrumbs: ['System Config'],
-  },
-};
+import PageHeader from '../common/PageHeader';
 
 const SuperUserDashboard = ({ userRole, onRoleChange, onLogout }) => {
-    const { section } = useParams();
     const [theme, setTheme] = useState('light');
     const [language, setLanguage] = useState('en');
     const [dateFilter, setDateFilter] = useState('Today');
@@ -221,14 +113,6 @@ const SuperUserDashboard = ({ userRole, onRoleChange, onLogout }) => {
         if (fromDate && toDate) setDataVersion(prev => prev + 1);
     };
 
-    if (section === 'catalogs') {
-        return <Navigate to="/dashboard/crop-master" replace />;
-    }
-
-    if (!SUPER_SECTIONS.has(section)) {
-        return <Navigate to="/dashboard/overview" replace />;
-    }
-
     return (
         <div className={`dashboard-layout theme-${theme}`}>
             {/* Sidebar */}
@@ -241,17 +125,11 @@ const SuperUserDashboard = ({ userRole, onRoleChange, onLogout }) => {
                 </div>
 
                 <nav className="sidebar-nav">
-                    <SidebarNavLink to="/dashboard/overview" end icon={<Home size={20} />}>
-                        Admin Control
-                    </SidebarNavLink>
+                    <div className="nav-item active"><Home size={20} /><span>Admin Control</span></div>
                     <SuperUserSidebar />
                     <div className="sidebar-divider"></div>
-                    <SidebarNavLink to="/dashboard/global-insights" icon={<BarChart2 size={20} />}>
-                        Global Insights
-                    </SidebarNavLink>
-                    <SidebarNavLink to="/dashboard/system-config" icon={<Settings size={20} />}>
-                        System Config
-                    </SidebarNavLink>
+                    <div className="nav-item"><BarChart2 size={20} /><span>Global Insights</span></div>
+                    <div className="nav-item"><Settings size={20} /><span>System Config</span></div>
                 </nav>
             </aside>
 
@@ -267,51 +145,25 @@ const SuperUserDashboard = ({ userRole, onRoleChange, onLogout }) => {
                     onLogout={onLogout} 
                 />
 
-                {section === 'overview' ? (
                 <div className="content-area">
-                    <div className="page-header">
-                        <div className="page-header-left">
-                            <h1>Super User Terminal</h1>
-                            <p>Global oversight across the <span className="highlight-text">Ethiopian Agricultural Grid</span></p>
-                        </div>
-                        <div className="page-header-right">
-                            <div className="page-header-actions">
-                                <div className="compact-date-wrapper">
-                                    <div className="compact-date-label">Audit Range</div>
-                                    <div className="compact-date-select-container">
-                                        <Calendar size={18} className="compact-icon text-gray" />
-                                        <select value={dateFilter} onChange={handleDateFilterSelect} className="compact-date-select">
-                                            <option value="Today">Today</option>
-                                            <option value="Yesterday">Yesterday</option>
-                                            <option value="This Week">This Week</option>
-                                            <option value="This Month">This Month</option>
-                                            <option value="Custom Date">Custom Range</option>
-                                        </select>
-                                    </div>
-                                    {showCustomDatePicker && (
-                                        <div className="compact-custom-date-popup">
-                                            <div className="date-range-inputs">
-                                                <input type="date" value={fromDate} onChange={handleFromDateChange} className="custom-date-input" />
-                                                <input type="date" value={toDate} onChange={handleToDateChange} className="custom-date-input" />
-                                            </div>
-                                            <button className="apply-custom-date-btn" onClick={handleApplyCustomDate} disabled={!fromDate || !toDate}>Run Audit</button>
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="download-action-wrapper">
-                                    <button className="download-action-btn" onClick={() => setShowDownloadOptions(!showDownloadOptions)}>
-                                        <Download size={18} /><span>Export All</span><ChevronDown size={16} />
-                                    </button>
-                                    {showDownloadOptions && (
-                                        <div className="download-options-dropdown">
-                                            <button className="download-option" onClick={() => setShowDownloadOptions(false)}><FileText size={16} /><span>Full DB CSV</span></button>
-                                            <button className="download-option" onClick={() => setShowDownloadOptions(false)}><FileText size={16} /><span>Security PDF</span></button>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <PageHeader 
+                        title="Super User Terminal"
+                        subtitle={<>Global oversight across the <span className="highlight-text">Ethiopian Agricultural Grid</span></>}
+                        dateFilter={dateFilter}
+                        onDateFilterChange={handleDateFilterSelect}
+                        showCustomDatePicker={showCustomDatePicker}
+                        setShowCustomDatePicker={setShowCustomDatePicker}
+                        fromDate={fromDate}
+                        toDate={toDate}
+                        onFromDateChange={handleFromDateChange}
+                        onToDateChange={handleToDateChange}
+                        onApplyCustomDate={handleApplyCustomDate}
+                        showDownloadOptions={showDownloadOptions}
+                        setShowDownloadOptions={setShowDownloadOptions}
+                        onExportCSV={() => console.log('Export CSV')}
+                        onExportPDF={() => console.log('Export PDF')}
+                        customDateLabel="Audit Range"
+                    />
 
                     <div className="stats-grid">
                         <SuperUserStats dateFilter={dateFilter} dataVersion={dataVersion} />
@@ -349,20 +201,6 @@ const SuperUserDashboard = ({ userRole, onRoleChange, onLogout }) => {
                         </div>
                     </div>
                 </div>
-                ) : (
-                <WorkflowRouter
-                    portalRole="Super User"
-                    section={section}
-                    theme={theme}
-                    fallback={
-                        <SectionPlaceholder
-                            title={SUPER_PLACEHOLDER[section].title}
-                            description={SUPER_PLACEHOLDER[section].description}
-                            breadcrumbs={SUPER_PLACEHOLDER[section].breadcrumbs}
-                        />
-                    }
-                />
-                )}
             </main>
         </div>
     );

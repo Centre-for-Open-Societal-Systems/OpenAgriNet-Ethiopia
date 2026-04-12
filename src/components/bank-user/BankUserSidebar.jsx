@@ -1,22 +1,25 @@
 import React from 'react';
 import { Briefcase, Users, Activity, FileText } from 'lucide-react';
-import SidebarNavLink from '../common/SidebarNavLink';
 
 const BankUserSidebar = () => {
   return (
     <>
-      <SidebarNavLink to="/dashboard/loan-applications" icon={<Briefcase size={20} />}>
-        Loan Applications
-      </SidebarNavLink>
-      <SidebarNavLink to="/dashboard/borrower-directory" icon={<Users size={20} />}>
-        Borrower Directory
-      </SidebarNavLink>
-      <SidebarNavLink to="/dashboard/risk-assessment" icon={<Activity size={20} />}>
-        Risk Assessment
-      </SidebarNavLink>
-      <SidebarNavLink to="/dashboard/repayment-reports" icon={<FileText size={20} />}>
-        Repayment Reports
-      </SidebarNavLink>
+      <div className="nav-item">
+        <Briefcase size={20} />
+        <span>Loan Applications</span>
+      </div>
+      <div className="nav-item">
+        <Users size={20} />
+        <span>Borrower Directory</span>
+      </div>
+      <div className="nav-item">
+        <Activity size={20} />
+        <span>Risk Assessment</span>
+      </div>
+      <div className="nav-item">
+        <FileText size={20} />
+        <span>Repayment Reports</span>
+      </div>
     </>
   );
 };
