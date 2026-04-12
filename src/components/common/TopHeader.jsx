@@ -1,38 +1,42 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-    ChevronDown, 
-    Bell, 
-    Globe, 
-    Moon, 
-    Sun, 
-    Languages, 
-    Sprout, 
-    Building2, 
-    Shield, 
-    LayoutDashboard, 
-    User, 
-    Settings, 
+    ChevronDown,
+    Bell,
+    Globe,
+    Moon,
+    Sun,
+    Languages,
+    Sprout,
+    Building2,
+    Shield,
+    LayoutDashboard,
+    User,
+    Settings,
     LogOut,
     Server,
     Activity,
     CloudRain,
     TrendingUp,
-    CheckCircle2
+    CheckCircle2,
+    Menu,
+    X
 } from 'lucide-react';
 import ATILogo from '../ATILogo';
 import './TopHeader.css';
 
-const TopHeader = ({ 
-    userRole, 
-    onRoleChange, 
-    theme, 
-    toggleTheme, 
-    language, 
-    setLanguage, 
-    onLogout 
+const TopHeader = ({
+    userRole,
+    onRoleChange,
+    theme,
+    toggleTheme,
+    language,
+    setLanguage,
+    onLogout,
+    toggleSidebar
 }) => {
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const [showRoleMenu, setShowRoleMenu] = useState(false);
+    const [showMobileRoleDropdown, setShowMobileRoleDropdown] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
     const [notifications, setNotifications] = useState([
         { id: 1, title: 'New farmer registration', text: ['Abebe Kebede registered in Addis Ababa', 'Abebe Kebede is a resident of Addis Ababa'], time: '2 hours ago', isRead: false, type: 'farmer' },
@@ -56,7 +60,7 @@ const TopHeader = ({
     ]);
 
     const getNotificationIcon = (type) => {
-        switch(type) {
+        switch (type) {
             case 'farmer': return <User size={18} />;
             case 'system': return <Server size={18} />;
             case 'update': return <Shield size={18} />;
@@ -70,7 +74,7 @@ const TopHeader = ({
     };
 
     const getNotificationColor = (type) => {
-        switch(type) {
+        switch (type) {
             case 'farmer': return 'blue';
             case 'system': return 'green';
             case 'update': return 'orange';
@@ -116,7 +120,7 @@ const TopHeader = ({
     }, []);
 
     const getProfileData = () => {
-        switch(userRole) {
+        switch (userRole) {
             case 'Admin':
                 return { name: 'System Admin', role: 'Administrator', icon: true };
             case 'Bank User':
@@ -128,13 +132,23 @@ const TopHeader = ({
                 return { name: 'Abera Tadesse', role: 'ID: OAN-FR-1042', img: '/farmer_profile.png' };
         }
     };
-    
+
     const profile = getProfileData();
 
     return (
         <header className="main-header">
             <div className="header-left">
-                <ATILogo />
+                <button type="button" className="hamburger-menu" onClick={() => toggleSidebar?.()} aria-label="Toggle navigation menu">
+                    <Menu size={24} />
+                </button>
+                {/* Full logo — desktop & tablet only */}
+                <span className="mobile-hidden">
+                    <ATILogo />
+                </span>
+                {/* Compact logo — mobile only (beside hamburger) */}
+                <span className="mobile-logo-only">
+                    <ATILogo compact />
+                </span>
             </div>
             <div className="header-right">
                 {/* Role Switcher */}
@@ -206,7 +220,7 @@ const TopHeader = ({
                         <Bell size={22} />
                         {unreadCount > 0 && <span className="badge">{unreadCount}</span>}
                     </div>
-                    
+
                     {showNotifications && (
                         <div className="notifications-dropdown">
                             <div className="notifications-header">
@@ -220,8 +234,8 @@ const TopHeader = ({
                             <div className="notifications-list">
                                 {notifications.length > 0 ? (
                                     notifications.map(notification => (
-                                        <div 
-                                            key={notification.id} 
+                                        <div
+                                            key={notification.id}
                                             className={`notification-item ${notification.isRead ? '' : 'unread'}`}
                                             onClick={() => markAsRead(notification.id)}
                                         >
@@ -253,28 +267,117 @@ const TopHeader = ({
                 </div>
 
                 {/* User Profile */}
-                <div
-                    className={`user-profile ${showProfileMenu ? 'active' : ''}`}
-                    onClick={() => setShowProfileMenu(!showProfileMenu)}
-                    ref={userProfileRef}
-                >
-                    {profile.img ? (
-                        <div className="avatar profile-avatar">
-                            <img src={profile.img} alt={profile.name} className="avatar-img" />
+                <div className="user-profile-container" ref={userProfileRef}>
+                    <button
+                        className={`user-profile ${showProfileMenu ? 'active' : ''}`}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setShowProfileMenu(!showProfileMenu);
+                        }}
+                    >
+                        {profile.img ? (
+                            <div className="avatar profile-avatar">
+                                <img src={profile.img} alt={profile.name} className="avatar-img" />
+                            </div>
+                        ) : (
+                            <div className="avatar">
+                                <User size={20} color="white" />
+                            </div>
+                        )}
+                        <div className="user-info">
+                            <span className="user-name">{profile.name}</span>
+                            <span className="user-role">{profile.role}</span>
                         </div>
-                    ) : (
-                        <div className="avatar">
-                            <User size={20} color="white" />
-                        </div>
-                    )}
-                    <div className="user-info">
-                        <span className="user-name">{profile.name}</span>
-                        <span className="user-role">{profile.role}</span>
-                    </div>
-                    <ChevronDown size={14} className={`user-profile-chevron ${showProfileMenu ? 'rotated' : ''}`} />
+                        <ChevronDown size={14} className={`user-profile-chevron ${showProfileMenu ? 'rotated' : ''}`} />
+                    </button>
 
                     {showProfileMenu && (
-                        <div className="profile-dropdown">
+                        <div className="profile-dropdown" onClick={(e) => e.stopPropagation()}>
+                            {/* User Profile Info - Mobile/Tablet Only */}
+                            <div className="profile-dropdown-header mobile-tablet-only">
+                                {profile.img ? (
+                                    <img src={profile.img} alt={profile.name} className="dropdown-avatar-img" />
+                                ) : (
+                                    <div className="dropdown-avatar-placeholder">
+                                        <User size={20} color="white" />
+                                    </div>
+                                )}
+                                <div className="dropdown-user-details">
+                                    <span className="dropdown-user-name">{profile.name}</span>
+                                    <span className="dropdown-user-role">{profile.role}</span>
+                                </div>
+                            </div>
+
+                            {/* Mobile Only Role Switcher - Toggle at the top section */}
+                            <div className="mobile-role-switcher mobile-role-list-top" style={{ padding: '0' }}>
+                                <div style={{ padding: '8px 12px', position: 'relative' }}>
+                                    <button
+                                        className={`role-switcher-btn ${showMobileRoleDropdown ? 'active' : ''}`}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setShowMobileRoleDropdown(!showMobileRoleDropdown);
+                                        }}
+                                        style={{ width: '100%', marginBottom: '0' }}
+                                    >
+                                        <div className="role-icon-small">
+                                            {userRole === 'Farmer' ? <Sprout size={14} /> :
+                                                userRole === 'Bank User' ? <Building2 size={14} /> :
+                                                    userRole === 'Admin' ? <Shield size={14} /> :
+                                                        <LayoutDashboard size={14} />}
+                                        </div>
+                                        <div className="role-text-container">
+                                            <div className="role-value">{userRole === 'Admin' ? 'Admin User' : userRole}</div>
+                                        </div>
+                                        <ChevronDown size={14} className={`role-chevron ${showMobileRoleDropdown ? 'rotated' : ''}`} />
+                                    </button>
+
+                                    {showMobileRoleDropdown && (
+                                        <div className="role-dropdown mobile-role-dropdown">
+                                            {[
+                                                { id: 'Farmer', label: 'Farmer', icon: <Sprout size={16} /> },
+                                                { id: 'Bank User', label: 'Bank User', icon: <Building2 size={16} /> },
+                                                { id: 'Admin', label: 'Admin User', icon: <Shield size={16} /> },
+                                                { id: 'Super User', label: 'Super User', icon: <LayoutDashboard size={16} /> }
+                                            ].map(role => (
+                                                <div
+                                                    key={role.id}
+                                                    className={`role-option ${userRole === role.id ? 'active' : ''}`}
+                                                    onClick={() => {
+                                                        onRoleChange(role.id);
+                                                        setShowMobileRoleDropdown(false);
+                                                        setShowProfileMenu(false);
+                                                    }}
+                                                >
+                                                    <div className="role-opt-icon">{role.icon}</div>
+                                                    <span>{role.label}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Mobile Language Selector - matches desktop pill exactly */}
+                                <div className="mobile-language-section" style={{ padding: '0 12px 12px 12px' }}>
+                                    <div className="mobile-language-selector-pill">
+                                        <div
+                                            className={`lang-option en ${language === 'en' ? 'active' : ''}`}
+                                            onClick={() => setLanguage('en')}
+                                        >
+                                            <Globe size={14} />
+                                            <span className="lang-text-bold">EN</span>
+                                        </div>
+                                        <div
+                                            className={`lang-option am ${language === 'am' ? 'active' : ''}`}
+                                            onClick={() => setLanguage('am')}
+                                        >
+                                            <Languages size={14} />
+                                            <span>አሃማ</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="dropdown-divider" style={{ marginTop: '0', marginBottom: '4px' }}></div>
+
                             <div className="dropdown-item">
                                 <User size={16} />
                                 <span>{userRole === 'Super User' ? 'Account Info' : 'Profile'}</span>
@@ -288,6 +391,7 @@ const TopHeader = ({
                                 <LogOut size={16} />
                                 <span>{userRole === 'Super User' ? 'System Logout' : 'Logout'}</span>
                             </div>
+
                         </div>
                     )}
                 </div>

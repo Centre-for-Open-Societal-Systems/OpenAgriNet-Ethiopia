@@ -6,7 +6,7 @@ import '../common/SectionPlaceholder.css';
 import {
     Home, Users, User, MapPin, Bird, Sprout, Mountain, Shield, Download,
     Database, BarChart2, Settings, ChevronDown, Bell, Globe, HelpCircle, Info,
-    TrendingUp, TrendingDown, Calendar, LogOut, Briefcase, Activity, Server, FileText, CloudRain, Sun, Moon, Languages, UserCircle, Landmark, Building2, LayoutDashboard, FileSpreadsheet, Beef, Wheat, X, History, ClipboardCheck
+    TrendingUp, TrendingDown, Calendar, LogOut, Briefcase, Activity, Server, FileText, CloudRain, Sun, Moon, Languages, UserCircle, Landmark, Building2, LayoutDashboard, FileSpreadsheet, Beef, Wheat, X, History, ClipboardCheck, Menu
 } from 'lucide-react';
 
 // Farmer-specific components
@@ -17,6 +17,7 @@ import TopHeader from '../common/TopHeader';
 import SidebarNavLink from '../common/SidebarNavLink';
 import SectionPlaceholder from '../common/SectionPlaceholder';
 import WorkflowRouter from '../workflow/WorkflowRouter';
+import FarmerRegistry from './FarmerRegistry';
 
 const FARMER_SECTIONS = new Set([
   'overview',
@@ -72,6 +73,9 @@ const FarmerDashboard = ({ userRole, onRoleChange, onLogout }) => {
     const [registryFilter, setRegistryFilter] = useState('All');
     const [showRegistryDropdown, setShowRegistryDropdown] = useState(false);
     const activitiesPerPage = 5;
+    const [isSidebarOpen, setIsSidebarOpen] = useState(
+        typeof window !== 'undefined' && window.innerWidth > 1024
+    );
 
     const datePickerRef = useRef(null);
     const downloadMenuRef = useRef(null);
@@ -124,6 +128,7 @@ const FarmerDashboard = ({ userRole, onRoleChange, onLogout }) => {
     // Real-time data simulation removed per user request for stationary UI.
 
     const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
+    const toggleSidebar = () => setIsSidebarOpen((open) => !open);
 
     const handleDateFilterSelect = (e) => {
         const filter = e.target.value;
@@ -473,10 +478,29 @@ const FarmerDashboard = ({ userRole, onRoleChange, onLogout }) => {
         return <Navigate to="/dashboard/overview" replace />;
     }
 
+    if (section === 'farmer-registry') {
+        return (
+            <FarmerRegistry
+                userRole={userRole}
+                onRoleChange={onRoleChange}
+                onLogout={onLogout}
+                overviewPath="/dashboard/overview"
+            />
+        );
+    }
+
     return (
-        <div className={`dashboard-layout theme-${theme}`}>
+        <div className={`dashboard-layout theme-${theme} ${isSidebarOpen ? 'sidebar-open' : ''}`}>
+            {isSidebarOpen && (
+                <div
+                    className="sidebar-backdrop"
+                    onClick={toggleSidebar}
+                    role="presentation"
+                    aria-hidden="true"
+                />
+            )}
             {/* Sidebar */}
-            <aside className="sidebar">
+            <aside className={`sidebar ${isSidebarOpen ? 'open' : 'collapsed'}`}>
                 <div className="sidebar-header">
                     <div className="logo-container">
                         <div className="logo-icon">
@@ -487,6 +511,9 @@ const FarmerDashboard = ({ userRole, onRoleChange, onLogout }) => {
                             <span className="logo-subtext">Ethiopia</span>
                         </div>
                     </div>
+                    <button type="button" className="sidebar-embedded-toggler" onClick={toggleSidebar} aria-label="Toggle sidebar width">
+                        <Menu size={20} color="white" />
+                    </button>
                 </div>
 
                 <nav className="sidebar-nav">
@@ -499,14 +526,15 @@ const FarmerDashboard = ({ userRole, onRoleChange, onLogout }) => {
 
             {/* Main Content */}
             <main className="dashboard-main">
-                <TopHeader 
-                    userRole={userRole} 
-                    onRoleChange={onRoleChange} 
-                    theme={theme} 
-                    toggleTheme={toggleTheme} 
-                    language={language} 
-                    setLanguage={setLanguage} 
-                    onLogout={onLogout} 
+                <TopHeader
+                    userRole={userRole}
+                    onRoleChange={onRoleChange}
+                    theme={theme}
+                    toggleTheme={toggleTheme}
+                    language={language}
+                    setLanguage={setLanguage}
+                    onLogout={onLogout}
+                    toggleSidebar={toggleSidebar}
                 />
 
                 {section === 'overview' ? (

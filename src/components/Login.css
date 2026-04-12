@@ -1194,14 +1194,36 @@
 }
 
 .help-popup-header {
-  padding: 24px 24px 20px;
+  padding: 16px 24px;
+  border-bottom: 1px solid #f3f4f6;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .help-popup-title {
   margin: 0;
   color: #374151;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.help-close-btn {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.help-close-btn:hover {
+  background-color: #f3f4f6;
+  color: #374151;
 }
 
 .help-popup-content {
@@ -1210,7 +1232,7 @@
 }
 
 .help-section {
-  padding: 0 24px 20px;
+  padding: 20px 24px;
 }
 
 .help-section-title {
@@ -1218,12 +1240,20 @@
   color: #374151;
   font-size: 14px;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.help-icon {
+  color: #22c55e;
+  flex-shrink: 0;
 }
 
 .help-section-text {
-  margin: 0;
+  margin: 0 0 0 28px;
   color: #6b7280;
-  font-size: 13px;
+  font-size: 13.5px;
   line-height: 1.6;
 }
 

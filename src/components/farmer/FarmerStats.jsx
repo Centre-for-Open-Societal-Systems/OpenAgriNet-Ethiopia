@@ -1,4 +1,19 @@
-import { Users, TrendingUp, TrendingDown, MapPin, Beef, Wheat, Map, Hash, Sun, Clock, Globe, Tag, Calendar, Activity, Shield } from 'lucide-react';
+import { Users, TrendingUp, TrendingDown, MapPin, Wheat, Map, Hash, Sun, Clock, Globe, Tag, Calendar, Activity, Shield } from 'lucide-react';
+
+// Custom PawPrint icon (not available in lucide-react v0.263.1)
+const PawPrint = ({ size = 24, className = '' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <path d="M14 14H10C8.34315 14 7 15.3431 7 17C7 18.6569 8.34315 20 10 20H14C15.6569 20 17 18.6569 17 17C17 15.3431 15.6569 14 14 14Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M7 14V9C7 7.67392 7.52678 6.40215 8.46447 5.46447C9.40215 4.52678 10.6739 4 12 4C13.3261 4 14.5979 4.52678 15.5355 5.46447C16.4732 6.40215 17 7.67392 17 9V14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M8 9C8 6 6 4 4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M16 9C16 6 18 4 20 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M7 11L3 13L7 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M17 11L21 13L17 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M10 17H10.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M14 17H14.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
 
 
 const getGrowthIcon = (growth) => {
@@ -11,7 +26,7 @@ const getGrowthColorClass = (growth) => {
   return 'growth-neutral';
 };
 
-const StatCard = ({ icon: Icon, colorClass, value, label, subtext, growth, footerIcon: FooterIcon }) => (
+export const StatCard = ({ icon: Icon, colorClass, value, label, subtext, growth, footerIcon: FooterIcon }) => (
   <div className="stat-card">
     <div className={`stat-left`}>
       <div className={`stat-icon-container ${colorClass}-bg`}>
@@ -105,7 +120,7 @@ const FarmerStats = ({ dateFilter = 'Today' }) => {
         growth={growthData[0]} footerIcon={Globe}
       />
       <StatCard
-        icon={Beef} colorClass="yellow" value={statValues[1]}
+        icon={PawPrint} colorClass="yellow" value={statValues[1]}
         label="Livestock Records" subtext="Tagged animals"
         growth={growthData[1]} footerIcon={Tag}
       />
