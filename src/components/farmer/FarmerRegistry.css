@@ -173,6 +173,66 @@
     transform: rotate(180deg);
 }
 
+.registry-fullscreen-btn-v6 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 44px;
+    padding: 0 16px;
+    background: #f8fafc;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.registry-fullscreen-btn-v6:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #1e293b;
+}
+
+/* Native fullscreen: fill viewport and let the table use remaining height */
+.registry-table-container:fullscreen,
+.registry-table-container:-webkit-full-screen {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    border-radius: 0;
+    overflow: auto;
+    box-sizing: border-box;
+    padding: 16px;
+    background: #f1f5f9;
+    display: flex;
+    flex-direction: column;
+}
+
+.theme-dark .registry-table-container:fullscreen,
+.theme-dark .registry-table-container:-webkit-full-screen {
+    background: #0f172a;
+}
+
+.registry-table-container:fullscreen .recent-activities.card,
+.registry-table-container:-webkit-full-screen .recent-activities.card {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: none;
+}
+
+.registry-table-container:fullscreen .table-responsive,
+.registry-table-container:-webkit-full-screen .table-responsive {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none !important;
+}
+
 .download-dropdown-card-v6 {
     position: absolute;
     top: calc(100% + 8px);
@@ -603,6 +663,36 @@
     font-weight: 700;
     color: #1e293b;
     margin-bottom: 2px;
+}
+
+.farmer-local-name-sub {
+    font-size: 14px;
+    font-weight: 600;
+    color: #64748b;
+    line-height: 1.35;
+    margin-bottom: 6px;
+}
+
+.farmer-id-chip-btn {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    margin-bottom: 8px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid #a7f3d0;
+    background: #ecfdf5;
+    color: #047857;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.farmer-id-chip-btn:hover {
+    background: #d1fae5;
+    border-color: #34d399;
 }
 
 .farmer-meta-stack {
@@ -3271,6 +3361,12 @@
     z-index: 1 !important;
 }
 
+/* Open row action menu must stack above following rows (all tbody tds share z-index:1) */
+.registry-list-table tbody tr.registry-row-actions-open td.actions-col {
+    z-index: 25 !important;
+    /* Below sticky thead (50) so labels stay on top when overlapping */
+}
+
 /* 
    ================================================================
    MOBILE & TABLET VIEW SYNC (Responsive Table Layout)
@@ -3386,4 +3482,380 @@
     .footer-stats-v5 {
         text-align: center !important;
     }
+}
+
+/* —— Spec-aligned: bulk bar, modals, status pills, compact list —— */
+.registry-bulk-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 14px;
+    padding: 12px 16px;
+    margin: 12px 0 0;
+    background: linear-gradient(90deg, #ecfdf5, #f0fdf4);
+    border: 1px solid #bbf7d0;
+    border-radius: 10px;
+}
+
+.registry-bulk-bar span {
+    font-weight: 600;
+    color: #14532d;
+    margin-right: 8px;
+}
+
+.registry-bulk-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.registry-chip-btn {
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    background: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    color: #334155;
+}
+
+.registry-chip-btn:hover {
+    border-color: #10b981;
+    color: #047857;
+}
+
+.registry-chip-btn.danger {
+    border-color: #fecaca;
+    color: #b91c1c;
+}
+
+.registry-chip-btn.danger:hover {
+    background: #fef2f2;
+}
+
+.registry-page-size {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #64748b;
+}
+
+.registry-page-size select {
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.farmer-id-link {
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    font-weight: 700;
+    color: #059669;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.farmer-id-link:hover {
+    color: #047857;
+}
+
+.registry-table-spec .sortable-col {
+    cursor: pointer;
+    user-select: none;
+}
+
+.registry-table-spec .sortable-col:hover {
+    color: #059669;
+}
+
+.registry-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    z-index: 12000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+.registry-modal {
+    background: #fff;
+    border-radius: 14px;
+    max-width: 480px;
+    width: 100%;
+    max-height: 90vh;
+    overflow: auto;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.registry-modal-wide {
+    max-width: 720px;
+}
+
+.registry-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.registry-modal-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.registry-modal-close {
+    border: none;
+    background: #f1f5f9;
+    border-radius: 8px;
+    padding: 6px;
+    cursor: pointer;
+}
+
+.registry-modal-body {
+    padding: 16px 20px;
+}
+
+.registry-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 12px 20px 16px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.registry-field-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    margin: 10px 0 4px;
+}
+
+.registry-input,
+.registry-textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.registry-btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    border: 1px solid transparent;
+}
+
+.registry-btn.secondary {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+    color: #334155;
+}
+
+.registry-btn.primary {
+    background: #059669;
+    color: #fff;
+}
+
+.registry-btn.danger {
+    background: #dc2626;
+    color: #fff;
+}
+
+.registry-muted {
+    color: #64748b;
+    font-size: 13px;
+}
+
+.registry-error-text {
+    color: #b91c1c;
+    font-size: 14px;
+}
+
+.registry-success-text {
+    color: #047857;
+    font-size: 14px;
+}
+
+.registry-audit-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.registry-audit-filters .registry-input {
+    width: auto;
+    min-width: 140px;
+}
+
+.registry-audit-list {
+    max-height: 360px;
+    overflow: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+}
+
+.registry-audit-row {
+    padding: 12px 14px;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 13px;
+}
+
+.registry-audit-meta {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+}
+
+.registry-audit-ts {
+    color: #64748b;
+}
+
+.registry-audit-type {
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.registry-audit-json {
+    margin: 6px 0 0;
+    font-size: 11px;
+    background: #f8fafc;
+    padding: 6px;
+    border-radius: 6px;
+    overflow-x: auto;
+}
+
+.registry-audit-immutable {
+    margin-top: 10px;
+    font-style: italic;
+}
+
+.registry-clear-filters {
+    padding: 6px 12px;
+    font-size: 13px;
+    border-radius: 8px;
+    border: 1px dashed #94a3b8;
+    background: #fff;
+    color: #475569;
+    cursor: pointer;
+}
+
+.registry-clear-filters:hover {
+    border-style: solid;
+    color: #0f172a;
+}
+
+/* Status pills (spec colour coding) */
+.status-pill-v4.registry-status-active,
+.status-pill-v4.active {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.status-pill-v4.registry-status-inactive {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.status-pill-v4.registry-status-pending-validation {
+    background: #ffedd5;
+    color: #9a3412;
+}
+
+.status-pill-v4.registry-status-pending,
+.status-pill-v4.pending {
+    background: #ffedd5;
+    color: #9a3412;
+}
+
+.status-pill-v4.registry-status-verified,
+.status-pill-v4.verified {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.status-pill-v4.registry-status-flagged-conflict {
+    background: #f3e8ff;
+    color: #6b21a8;
+}
+
+.status-pill-v4.registry-status-suspended {
+    background: #fecaca;
+    color: #7f1d1d;
+}
+
+.status-pill-v4.registry-status-merged,
+.status-pill-v4.merged {
+    background: #e2e8f0;
+    color: #334155;
+}
+
+.status-pill-v4.registry-status-draft {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+.status-pill-v4.registry-status-rejected,
+.status-pill-v4.rejected {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.theme-dark .registry-modal {
+    background: #1e293b;
+    color: #e2e8f0;
+}
+
+.theme-dark .registry-modal-header,
+.theme-dark .registry-modal-footer {
+    border-color: #334155;
+}
+
+.theme-dark .registry-input,
+.theme-dark .registry-textarea {
+    background: #0f172a;
+    border-color: #334155;
+    color: #e2e8f0;
+}
+
+.registry-mini-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.registry-mini-table th,
+.registry-mini-table td {
+    border: 1px solid #e2e8f0;
+    padding: 8px 10px;
+    text-align: left;
+}
+
+.registry-mini-table th {
+    background: #f8fafc;
+    font-weight: 600;
+}
+
+.registry-bullet-list {
+    margin: 0;
+    padding-left: 20px;
+    color: #475569;
+    font-size: 14px;
+}
+
+.registry-bullet-list li {
+    margin-bottom: 6px;
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
 import './FarmerDashboard.css';
 import '../common/ContentArea.css';
@@ -6,16 +6,36 @@ import './FarmerRegistry.css';
 import {
     Home, Users, User, MapPin, Bird, Sprout, Mountain, Shield, Download,
     Database, BarChart2, Settings, ChevronDown, Bell, Globe, HelpCircle, Info, Menu,
-    TrendingUp, TrendingDown, Calendar, LogOut, Briefcase, Activity, Server, FileText, CloudRain, Sun, Moon, Languages, UserCircle, Landmark, Building2, LayoutDashboard, FileSpreadsheet, Beef, Wheat, X, History, ClipboardCheck, UserPlus, Search, Eye, Printer, Check, Edit, Trash2, Plus, CheckCircle, Clock, AlertCircle, Map, ShieldCheck, Timer, MoreVertical, Phone, Mail, ArrowUpDown, XCircle, Filter, Smartphone, Layout, Upload, ArrowLeft
+    TrendingUp, TrendingDown, Calendar, LogOut, Briefcase, Activity, Server, FileText, CloudRain, Sun, Moon, Languages, UserCircle, Landmark, Building2, LayoutDashboard, FileSpreadsheet, Beef, Wheat, X, History, ClipboardCheck, UserPlus, Search, Eye, Printer, Check, Edit, Trash2, Plus, CheckCircle, Clock, AlertCircle, Map, ShieldCheck,     Timer, MoreVertical, Phone, Mail, ArrowUpDown, XCircle, Filter, Smartphone, Layout, Upload, ArrowLeft,
+    Maximize2, Minimize2
 } from 'lucide-react';
 
 // Farmer-specific components
 import FarmerSidebar from './FarmerSidebar';
 import { StatCard } from './FarmerStats';
-import ATILogo from '../ATILogo';
 import TopHeader from '../common/TopHeader';
 import PageHeader from '../common/PageHeader';
 import FarmerRegistrationForm from './FarmerRegistrationForm';
+import * as XLSX from 'xlsx';
+import {
+  REGISTRY_STATUSES,
+  migrateFarmers,
+  normalizeFarmer,
+  statusCssClass,
+  createAuditEntry,
+  findFarmerWithFaydaId,
+  distinctWoredas,
+  maskFaydaId,
+  nowIso,
+} from './farmerRegistryModel';
+import {
+  StatusUpdateModal,
+  FaydaVerifyModal,
+  AuditLogModal,
+  SoftDeleteModal,
+  SelectAllPagesModal,
+  BulkActionModal,
+} from './FarmerRegistryDialogs';
 
 const FarmerRegistry = ({
     userRole,
@@ -34,15 +54,21 @@ const FarmerRegistry = ({
     const [currentPage, setCurrentPage] = useState(1);
     const [sortConfig, setSortConfig] = useState({ key: 'registeredDate', direction: 'desc' });
     const [searchTerm, setSearchTerm] = useState('');
-    const [itemsPerPage] = useState(10);
-    const [selectedStatuses, setSelectedStatuses] = useState(['Verified', 'Pending', 'Rejected']);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [selectedStatuses, setSelectedStatuses] = useState([...REGISTRY_STATUSES]);
     const [selectedRegions, setSelectedRegions] = useState(['All Regions']);
-    const [selectedKisanStatuses, setSelectedKisanStatuses] = useState(['Active', 'Inactive']);
-    const [selectedCrops, setSelectedCrops] = useState(['All Crops']);
+    const [selectedWoredas, setSelectedWoredas] = useState(['All Woredas']);
     const [regionFilterOpen, setRegionFilterOpen] = useState(false);
-    const [agriFilterOpen, setAgriFilterOpen] = useState(false);
     const [statusFilterOpen, setStatusFilterOpen] = useState(false);
-    const [kisanFilterOpen, setKisanFilterOpen] = useState(false);
+    const [woredaFilterOpen, setWoredaFilterOpen] = useState(false);
+    const [statusModalFarmer, setStatusModalFarmer] = useState(null);
+    const [faydaModalFarmer, setFaydaModalFarmer] = useState(null);
+    const [auditModalFarmer, setAuditModalFarmer] = useState(null);
+    const [deleteModalFarmer, setDeleteModalFarmer] = useState(null);
+    const [bulkModal, setBulkModal] = useState(null);
+    const [selectAllPagesOpen, setSelectAllPagesOpen] = useState(false);
+    const [bulkResultMessage, setBulkResultMessage] = useState(null);
+    const [registrationSuccess, setRegistrationSuccess] = useState(null);
     const [showDownloadOptions, setShowDownloadOptions] = useState(false);
     const [exportMessage, setExportMessage] = useState(null);
     const [activeTab, setActiveTab] = useState('list');
@@ -59,22 +85,68 @@ const FarmerRegistry = ({
     const fileInputRef = useRef(null);
 
     const regions = ['Addis Ababa', 'Afar', 'Amhara', 'Benishangul-Gumuz', 'Dire Dawa', 'Gambela', 'Harari', 'Oromia', 'Sidama', 'Somali', 'Southern Nations, Nationalities, and Peoples\' Region', 'Tigray'];
-    const crops = ['Wheat', 'Sugarcane', 'Rice', 'Maize', 'Vegetables', 'Mustard', 'Bajra', 'Cotton', 'Coconut', 'Groundnut'];
 
     const regionFilterRef = useRef(null);
-    const agriFilterRef = useRef(null);
     const statusFilterRef = useRef(null);
-    const kisanFilterRef = useRef(null);
+    const woredaFilterRef = useRef(null);
     const helpWindowRef = useRef(null);
     const downloadMenuRef = useRef(null);
+    const registryTableFullscreenRef = useRef(null);
+    const [isRegistryTableFullscreen, setIsRegistryTableFullscreen] = useState(false);
+
+    const getFullscreenElement = () =>
+        document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.mozFullScreenElement ||
+        document.msFullscreenElement;
+
+    const enterRegistryTableFullscreen = () => {
+        const el = registryTableFullscreenRef.current;
+        if (!el) return;
+        const req =
+            el.requestFullscreen ||
+            el.webkitRequestFullscreen ||
+            el.mozRequestFullScreen ||
+            el.msRequestFullscreen;
+        if (req) {
+            Promise.resolve(req.call(el)).catch(() => {});
+        }
+    };
+
+    const exitRegistryTableFullscreen = () => {
+        const d = document;
+        const exit =
+            d.exitFullscreen ||
+            d.webkitExitFullscreen ||
+            d.mozCancelFullScreen ||
+            d.msExitFullscreen;
+        if (exit) {
+            Promise.resolve(exit.call(d)).catch(() => {});
+        }
+    };
+
+    useEffect(() => {
+        const syncFullscreen = () => {
+            setIsRegistryTableFullscreen(getFullscreenElement() === registryTableFullscreenRef.current);
+        };
+        document.addEventListener('fullscreenchange', syncFullscreen);
+        document.addEventListener('webkitfullscreenchange', syncFullscreen);
+        document.addEventListener('mozfullscreenchange', syncFullscreen);
+        document.addEventListener('MSFullscreenChange', syncFullscreen);
+        return () => {
+            document.removeEventListener('fullscreenchange', syncFullscreen);
+            document.removeEventListener('webkitfullscreenchange', syncFullscreen);
+            document.removeEventListener('mozfullscreenchange', syncFullscreen);
+            document.removeEventListener('MSFullscreenChange', syncFullscreen);
+        };
+    }, []);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (helpWindowRef.current && !helpWindowRef.current.contains(event.target)) setIsHelpOpen(false);
             if (regionFilterRef.current && !regionFilterRef.current.contains(event.target)) setRegionFilterOpen(false);
-            if (agriFilterRef.current && !agriFilterRef.current.contains(event.target)) setAgriFilterOpen(false);
             if (statusFilterRef.current && !statusFilterRef.current.contains(event.target)) setStatusFilterOpen(false);
-            if (kisanFilterRef.current && !kisanFilterRef.current.contains(event.target)) setKisanFilterOpen(false);
+            if (woredaFilterRef.current && !woredaFilterRef.current.contains(event.target)) setWoredaFilterOpen(false);
             if (downloadMenuRef.current && !downloadMenuRef.current.contains(event.target)) setShowDownloadOptions(false);
             if (!event.target.closest('.actions-col')) setOpenActionMenuId(null);
             if (!event.target.closest('.custom-doc-select-v6')) setIsDocTypeOpen(false);
@@ -91,36 +163,63 @@ const FarmerRegistry = ({
         const femaleNames = ['Meskerem', 'Birtukan', 'Hirut', 'Nigist', 'Zenebech', 'Aster', 'Chaltu', 'Dibaba', 'Elen', 'Jember', 'Lula', 'Marta'];
         const surnames = ['Bekele', 'Wolde', 'Tadesse', 'Abera', 'Hailu', 'Kassa', 'Mekonnen', 'Gizaw', 'Assefa', 'Demissie', 'Tsegaye', 'Desta', 'Kidus', 'Zerihun', 'Alemu', 'Gebre', 'Ayele', 'Zeleke', 'Mulu', 'Lemma'];
         const regionList = ['Addis Ababa', 'Oromia', 'Amhara', 'Tigray', 'Sidama', 'Somali'];
-        const kebeleList = ['Kebele 01', 'Kebele 05', 'Kebele 07', 'Kebele 11 Chapter', 'Kebele 12', 'Kebele 20 Kebele', 'Kebele 25', 'Kebele 32'];
+        const kebeleList = ['Kebele 01', 'Kebele 05', 'Kebele 07', 'Kebele 11', 'Kebele 12', 'Kebele 20', 'Kebele 25', 'Kebele 32'];
         const cropList = ['Wheat', 'Sugarcane', 'Rice', 'Maize', 'Vegetables', 'Mustard', 'Bajra', 'Cotton', 'Coconut', 'Groundnut'];
         const phonePrefixes = ['+251 91', '+251 92', '+251 93', '+251 94', '+251 95'];
+        const livelihoods = ['Crops', 'Livestock', 'Mixed', 'Other'];
+        const localSuffix = ['ደራስ', 'መኮንን', 'ወልደ', 'ተስፋ'];
 
         return Array.from({ length: 75 }, (_, i) => {
             const isMale = i % 2 === 0;
             const first = isMale ? maleNames[i % maleNames.length] : femaleNames[i % femaleNames.length];
             const last = surnames[i % surnames.length];
-            const name = `${first} ${last}`;
+            const nameEn = `${first} ${last}`;
+            const nameLocal = `${localSuffix[i % localSuffix.length]} ${first}`;
             const gender = isMale ? 'Male' : 'Female';
-            const status = i % 5 === 0 ? 'Pending' : (i % 7 === 0 ? 'Rejected' : 'Verified');
+            const registryStatus = REGISTRY_STATUSES[i % REGISTRY_STATUSES.length];
             const region = regionList[i % regionList.length];
+            const woreda = `Woreda ${(i % 15) + 1}`;
+            const ageYears = 25 + (i % 40);
+            const hasFayda = i % 3 !== 0;
+            const faydaId = hasFayda ? `FAYDA-${(100000 + i).toString()}` : '';
+            const dobDate = new Date(1990 + (i % 20), (i % 12), (i % 27) + 1);
+            const dob = dobDate.toISOString().split('T')[0];
 
-            return {
+            const row = {
                 id: `OAN-FR-${(i + 1).toString().padStart(3, '0')}`,
-                name: name,
+                name: nameEn,
+                fullNameLatin: nameEn,
+                fullNameAmharic: nameLocal,
+                fullNameLocal: nameLocal,
                 photo: `https://randomuser.me/api/portraits/${isMale ? 'men' : 'women'}/${i % 70}.jpg`,
-                gender: gender,
-                age: `${25 + (i % 40)} Yrs`,
+                gender,
+                ageYears,
+                age: `${ageYears} Yrs`,
+                dob,
                 phone: `${phonePrefixes[i % 5]} ${Math.floor(1000000 + Math.random() * 9000000)}`,
                 email: `${first.toLowerCase()}.${last.toLowerCase()}${i}@gmail.com`,
                 kebele: kebeleList[i % kebeleList.length],
-                woreda: `Woreda ${(i % 15) + 1}`,
-                region: region,
+                woreda,
+                region,
+                village: `Village ${(i % 5) + 1}`,
                 registeredDate: `2024-${(i % 3) + 1}-${(i % 28) + 1}`,
+                registrationDateField: `2024-${(i % 3) + 1}-${(i % 28) + 1}`,
                 acres: `${(Math.random() * 15).toFixed(1)} Acres`,
                 crops: [cropList[i % cropList.length], cropList[(i + 1) % cropList.length]],
-                status: status,
-                kisanCard: i % 4 === 0 ? 'Inactive' : 'Active'
+                registryStatus,
+                status: registryStatus,
+                kisanCard: i % 4 === 0 ? 'Inactive' : 'Active',
+                faydaId,
+                nationalId: faydaId,
+                livelihood: livelihoods[i % livelihoods.length],
+                verificationStatus: faydaId ? (i % 11 === 0 ? 'Pending' : 'Verified') : 'Unverified',
+                verificationDate: faydaId && i % 11 !== 0 ? `2024-02-${(i % 27) + 1}` : '',
+                verifiedBy: faydaId && i % 11 !== 0 ? 'verifier-001' : '',
+                householdSize: 4 + (i % 6),
+                notes: '',
+                deleted: false,
             };
+            return normalizeFarmer(row, i);
         });
     };
 
@@ -128,13 +227,13 @@ const FarmerRegistry = ({
         const savedFarmers = localStorage.getItem('oan_farmers');
         if (savedFarmers) {
             try {
-                return JSON.parse(savedFarmers);
+                return migrateFarmers(JSON.parse(savedFarmers));
             } catch (e) {
                 console.error("Failed to parse saved farmers", e);
-                return generateFarmers();
+                return migrateFarmers(generateFarmers());
             }
         }
-        const initialFarmers = generateFarmers();
+        const initialFarmers = migrateFarmers(generateFarmers());
         localStorage.setItem('oan_farmers', JSON.stringify(initialFarmers));
         return initialFarmers;
     });
@@ -144,59 +243,123 @@ const FarmerRegistry = ({
         localStorage.setItem('oan_farmers', JSON.stringify(farmers));
     }, [farmers]);
 
-    const handleNewRegistration = (newReg) => {
-        // Map the form data to the registry list item structure
-        // This simulates an API POST request and local state update
+    const handleNewRegistration = (newReg, opts = {}) => {
+        const ageYears = newReg.dob
+            ? new Date().getFullYear() - new Date(newReg.dob).getFullYear()
+            : parseInt(String(newReg.ageYears || '').replace(/\D/g, ''), 10) || 32;
 
         if (editingFarmer) {
-            // Handle Edit
-            const updatedFarmers = farmers.map(f => {
-                if (f.id === editingFarmer.id) {
-                    return {
-                        ...f,
-                        ...newReg,
-                        name: newReg.fullNameLatin || newReg.fullNameAmharic,
-                        photo: newReg.photoUrl || f.photo,
-                        phone: newReg.mobileNumber,
-                        email: newReg.email || f.email,
-                        acres: `${newReg.landHoldings || 0} Acres`,
-                        crops: newReg.agricultureType || [],
-                        age: newReg.dob ? `${new Date().getFullYear() - new Date(newReg.dob).getFullYear()} Yrs` : f.age
-                    };
-                }
-                return f;
+            const prev = farmers.find((x) => x.id === editingFarmer.id);
+            const updatedFarmers = farmers.map((f) => {
+                if (f.id !== editingFarmer.id) return f;
+                const merged = normalizeFarmer({
+                    ...f,
+                    ...newReg,
+                    fullNameLatin: newReg.fullNameLatin || newReg.fullNameAmharic || f.fullNameLatin,
+                    fullNameAmharic: newReg.fullNameAmharic || f.fullNameAmharic,
+                    fullNameLocal: newReg.fullNameAmharic || f.fullNameLocal,
+                    name: newReg.fullNameLatin || newReg.fullNameAmharic || f.name,
+                    photo: newReg.photoUrl || f.photo,
+                    phone: newReg.mobileNumber,
+                    email: newReg.email || f.email,
+                    acres: `${newReg.landHoldings || 0} Acres`,
+                    crops: newReg.agricultureType || f.crops,
+                    ageYears,
+                    age: newReg.dob ? `${ageYears} Yrs` : f.age,
+                    dob: newReg.dob || f.dob,
+                    kebele: newReg.kebele,
+                    woreda: newReg.woreda,
+                    region: newReg.region,
+                    village: newReg.village || f.village,
+                    householdSize: parseInt(newReg.householdSize, 10) || f.householdSize,
+                    livelihood: newReg.primaryLivelihood || newReg.primaryActivity || f.livelihood,
+                    faydaId: newReg.faydaId || newReg.nationalId || f.faydaId,
+                    nationalId: newReg.nationalId || newReg.faydaId || f.nationalId,
+                    notes: newReg.notes != null ? newReg.notes : f.notes,
+                    registrationDateField: newReg.registrationDate || f.registrationDateField,
+                    registeredDate: newReg.registrationDate || f.registeredDate,
+                    lastUpdatedBy: 'current-user',
+                    lastUpdatedAt: nowIso(),
+                    auditLog: [
+                        createAuditEntry({
+                            type: 'Profile Updated',
+                            farmerId: f.id,
+                            message: 'Profile updated from registration form.',
+                            before: { name: prev?.name, region: prev?.region },
+                            after: { name: newReg.fullNameLatin || newReg.fullNameAmharic, region: newReg.region },
+                        }),
+                        ...(f.auditLog || []),
+                    ],
+                });
+                return merged;
             });
             setFarmers(updatedFarmers);
-        } else {
-            // Handle New Registration
-            const nextId = farmers.length > 0 ?
-                Math.max(...farmers.map(f => parseInt(f.id.split('-').pop()) || 0)) + 1 : 1;
-
-            const newEntry = {
-                ...newReg,
-                id: `OAN-FR-${nextId.toString().padStart(3, '0')}`,
-                name: newReg.fullNameLatin || newReg.fullNameAmharic,
-                photo: newReg.photoUrl || `https://randomuser.me/api/portraits/lego/${nextId % 10}.jpg`,
-                gender: newReg.gender,
-                age: newReg.dob ? `${new Date().getFullYear() - new Date(newReg.dob).getFullYear()} Yrs` : "32 Yrs",
-                phone: newReg.mobileNumber,
-                email: newReg.email || `${(newReg.fullNameLatin || "farmer").toLowerCase().replace(/\s/g, '.')}@example.com`,
-                kebele: newReg.kebele,
-                woreda: newReg.woreda,
-                region: newReg.region,
-                registeredDate: new Date().toISOString().split('T')[0],
-                acres: `${newReg.landHoldings || 0} Acres`,
-                crops: newReg.agricultureType || [],
-                status: "Pending",
-                kisanCard: "Active"
-            };
-
-            setFarmers([newEntry, ...farmers]);
+            setActiveTab('list');
+            setSearchTerm('');
+            setEditingFarmer(null);
+            return;
         }
 
-        setActiveTab('list');
-        // Clear search to show the new entry at the top
-        setSearchTerm('');
+        const nextId =
+            farmers.length > 0 ? Math.max(...farmers.map((f) => parseInt(f.id.split('-').pop(), 10) || 0), 0) + 1 : 1;
+        const idStr = `OAN-FR-${nextId.toString().padStart(3, '0')}`;
+        const regDate = newReg.registrationDate || new Date().toISOString().split('T')[0];
+        const raw = {
+            ...newReg,
+            id: idStr,
+            fullNameLatin: newReg.fullNameLatin || newReg.fullNameAmharic,
+            fullNameAmharic: newReg.fullNameAmharic,
+            fullNameLocal: newReg.fullNameAmharic,
+            name: newReg.fullNameLatin || newReg.fullNameAmharic,
+            photo: newReg.photoUrl || `https://randomuser.me/api/portraits/lego/${nextId % 10}.jpg`,
+            gender: newReg.gender,
+            ageYears,
+            age: newReg.dob ? `${ageYears} Yrs` : `${ageYears} Yrs`,
+            dob: newReg.dob || '',
+            phone: newReg.mobileNumber,
+            email: newReg.email || `${(newReg.fullNameLatin || 'farmer').toLowerCase().replace(/\s/g, '.')}@example.com`,
+            kebele: newReg.kebele,
+            woreda: newReg.woreda,
+            region: newReg.region,
+            village: newReg.village || '',
+            registeredDate: regDate,
+            registrationDateField: regDate,
+            acres: `${newReg.landHoldings || 0} Acres`,
+            crops: newReg.agricultureType || [],
+            registryStatus: 'Pending Validation',
+            status: 'Pending Validation',
+            kisanCard: 'Active',
+            faydaId: newReg.faydaId || newReg.nationalId || '',
+            nationalId: newReg.nationalId || newReg.faydaId || '',
+            livelihood: newReg.primaryLivelihood || newReg.primaryActivity || 'Mixed',
+            verificationStatus: newReg.faydaId || newReg.nationalId ? 'Pending' : 'Unverified',
+            notes: newReg.notes || '',
+            householdSize: parseInt(newReg.householdSize, 10) || 1,
+            deleted: false,
+            auditLog: [
+                createAuditEntry({
+                    type: 'Profile Created',
+                    farmerId: idStr,
+                    message: 'Farmer registered in OpenAgriNet (demo).',
+                }),
+            ],
+            statusHistory: [
+                {
+                    at: nowIso(),
+                    from: 'Draft',
+                    to: 'Pending Validation',
+                    reason: 'Submitted',
+                    by: 'current-user',
+                },
+            ],
+        };
+        const newEntry = normalizeFarmer(raw);
+        setFarmers([newEntry, ...farmers]);
+        setRegistrationSuccess({ id: newEntry.id, name: newEntry.name });
+        if (!opts.stayOnSuccess) {
+            setActiveTab('list');
+            setSearchTerm('');
+        }
     };
 
     const handlePrintAction = () => {
@@ -230,38 +393,57 @@ const FarmerRegistry = ({
         }
     };
 
-    const toggleKisanFilter = (status) => {
-        setSelectedKisanStatuses(selectedKisanStatuses.includes(status) ? selectedKisanStatuses.filter(s => s !== status) : [...selectedKisanStatuses, status]);
-    };
+    const allWoredas = useMemo(() => distinctWoredas(farmers), [farmers]);
 
-    const toggleCropFilter = (crop) => {
-        if (crop === 'All Crops') {
-            setSelectedCrops(selectedCrops.includes('All Crops') ? [] : ['All Crops', ...crops]);
+    const toggleWoredaFilter = (w) => {
+        if (w === 'All Woredas') {
+            setSelectedWoredas(selectedWoredas.includes('All Woredas') ? [] : ['All Woredas', ...allWoredas]);
         } else {
-            const newSelection = selectedCrops.includes(crop)
-                ? selectedCrops.filter(c => c !== crop && c !== 'All Crops')
-                : [...selectedCrops.filter(c => c !== 'All Crops'), crop];
-            setSelectedCrops(newSelection.length === crops.length ? ['All Crops', ...newSelection] : newSelection);
+            const next = selectedWoredas.includes(w)
+                ? selectedWoredas.filter((x) => x !== w && x !== 'All Woredas')
+                : [...selectedWoredas.filter((x) => x !== 'All Woredas'), w];
+            setSelectedWoredas(next.length === allWoredas.length ? ['All Woredas', ...next] : next);
         }
     };
 
-    const filteredFarmersList = farmers.filter(farmer => {
+    const clearAllFilters = () => {
+        setSearchTerm('');
+        setSelectedStatuses([...REGISTRY_STATUSES]);
+        setSelectedRegions(['All Regions']);
+        setSelectedWoredas(['All Woredas']);
+        setCurrentPage(1);
+    };
+
+    const filteredFarmersList = farmers.filter((farmer) => {
+        if (farmer.deleted) return false;
+        const q = searchTerm.toLowerCase();
         const matchesSearch =
-            farmer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            farmer.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            farmer.kebele.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesStatus = selectedStatuses.includes(farmer.status);
+            !q ||
+            farmer.name.toLowerCase().includes(q) ||
+            (farmer.fullNameLocal || '').toLowerCase().includes(q) ||
+            (farmer.fullNameAmharic || '').toLowerCase().includes(q) ||
+            farmer.id.toLowerCase().includes(q) ||
+            (farmer.kebele || '').toLowerCase().includes(q);
+        const st = farmer.registryStatus || farmer.status;
+        const matchesStatus = selectedStatuses.includes(st);
         const matchesRegion = selectedRegions.includes('All Regions') || selectedRegions.includes(farmer.region);
-        const matchesKisan = selectedKisanStatuses.includes(farmer.kisanCard);
-        const matchesCrop = selectedCrops.includes('All Crops') || farmer.crops.some(c => selectedCrops.includes(c));
-        return matchesSearch && matchesStatus && matchesRegion && matchesKisan && matchesCrop;
+        const matchesWoreda = selectedWoredas.includes('All Woredas') || selectedWoredas.includes(farmer.woreda);
+        return matchesSearch && matchesStatus && matchesRegion && matchesWoreda;
     });
 
     const sortedFarmers = [...filteredFarmersList].sort((a, b) => {
         const order = sortConfig.direction === 'asc' ? 1 : -1;
-        if (sortConfig.key === 'name') return a.name.localeCompare(b.name) * order;
-        if (sortConfig.key === 'id') return a.id.localeCompare(b.id) * order;
-        if (sortConfig.key === 'registeredDate') return (new Date(a.registeredDate) - new Date(b.registeredDate)) * order;
+        const { key } = sortConfig;
+        if (key === 'name' || key === 'fullNameLatin') return (a.fullNameLatin || a.name).localeCompare(b.fullNameLatin || b.name) * order;
+        if (key === 'fullNameLocal') return (a.fullNameLocal || '').localeCompare(b.fullNameLocal || '') * order;
+        if (key === 'id') return a.id.localeCompare(b.id) * order;
+        if (key === 'registeredDate') return (new Date(a.registeredDate) - new Date(b.registeredDate)) * order;
+        if (key === 'kebele') return (a.kebele || '').localeCompare(b.kebele || '') * order;
+        if (key === 'woreda') return (a.woreda || '').localeCompare(b.woreda || '') * order;
+        if (key === 'region') return (a.region || '').localeCompare(b.region || '') * order;
+        if (key === 'gender') return (a.gender || '').localeCompare(b.gender || '') * order;
+        if (key === 'ageYears') return ((a.ageYears || 0) - (b.ageYears || 0)) * order;
+        if (key === 'registryStatus') return (a.registryStatus || a.status).localeCompare(b.registryStatus || b.status) * order;
         return 0;
     });
 
@@ -314,8 +496,15 @@ const FarmerRegistry = ({
     };
 
     const handleSelectAll = (e) => {
-        setSelectedFarmers(e.target.checked ? currentFarmers.map(f => f.id) : []);
+        setSelectedFarmers(e.target.checked ? currentFarmers.map((f) => f.id) : []);
     };
+
+    const applySelectAllMatching = () => {
+        setSelectedFarmers(filteredFarmersList.map((f) => f.id));
+        setSelectAllPagesOpen(false);
+    };
+
+    const privilegedViewer = userRole === 'Admin' || userRole === 'Super User';
 
     const handleSelectFarmer = (id) => {
         setSelectedFarmers(selectedFarmers.includes(id) ? selectedFarmers.filter(fid => fid !== id) : [...selectedFarmers, id]);
@@ -347,41 +536,332 @@ const FarmerRegistry = ({
     const handleEditRegistration = (id) => {
         const farmerToEdit = farmers.find(f => f.id === id);
         if (farmerToEdit) {
+            if (farmerToEdit.registryStatus === 'Suspended') {
+                window.alert('This profile is suspended. Change status back to Active (or request reactivation) before editing.');
+                return;
+            }
             setEditingFarmer(farmerToEdit);
             setActiveTab('new');
             setOpenActionMenuId(null);
         }
     };
 
-    const handleExportCSV = () => {
+    const patchFarmerById = (id, updater) => {
+        setFarmers((prev) => prev.map((f) => (f.id === id ? updater(f) : f)));
+        setViewingFarmer((vf) => (vf && vf.id === id ? updater(vf) : vf));
+    };
+
+    const submitStatusUpdate = ({ to, reason, notes }) => {
+        if (!statusModalFarmer) return;
+        const id = statusModalFarmer.id;
+        const from = statusModalFarmer.registryStatus || statusModalFarmer.status;
+        patchFarmerById(id, (f) =>
+            normalizeFarmer({
+                ...f,
+                registryStatus: to,
+                status: to,
+                lastUpdatedBy: 'current-user',
+                lastUpdatedAt: nowIso(),
+                statusHistory: [
+                    { at: nowIso(), from, to, reason: reason || notes || '—', by: 'current-user' },
+                    ...(f.statusHistory || []),
+                ],
+                auditLog: [
+                    createAuditEntry({
+                        type: 'Status Changed',
+                        farmerId: id,
+                        message: `Status changed: ${from} → ${to}`,
+                        before: { status: from },
+                        after: { status: to },
+                        justification: reason || notes,
+                    }),
+                    ...(f.auditLog || []),
+                ],
+            })
+        );
+        setStatusModalFarmer(null);
+    };
+
+    const submitFaydaVerification = (patch, farmerIdArg) => {
+        const id = farmerIdArg || faydaModalFarmer?.id;
+        if (!id) return;
+        patchFarmerById(id, (f) => {
+            const prevReg = f.registryStatus || f.status;
+            const nextReg = patch.registryStatus ?? patch.status ?? prevReg;
+            const regChanged = nextReg !== prevReg;
+            return normalizeFarmer({
+                ...f,
+                ...patch,
+                lastUpdatedAt: nowIso(),
+                lastUpdatedBy: patch.verifiedBy || 'current-user',
+                statusHistory: regChanged
+                    ? [
+                          {
+                              at: nowIso(),
+                              from: prevReg,
+                              to: nextReg,
+                              reason: 'Fayda verification succeeded',
+                              by: patch.verifiedBy || 'current-user',
+                          },
+                          ...(f.statusHistory || []),
+                      ]
+                    : f.statusHistory,
+                auditLog: [
+                    createAuditEntry({
+                        type: 'Fayda Verification',
+                        farmerId: id,
+                        message: 'Registry check: Fayda ID unique in integrated database (mock).',
+                        before: {
+                            verificationStatus: f.verificationStatus,
+                            registryStatus: prevReg,
+                        },
+                        after: {
+                            verificationStatus: patch.verificationStatus,
+                            registryStatus: nextReg,
+                            verificationDate: patch.verificationDate,
+                        },
+                    }),
+                    ...(f.auditLog || []),
+                ],
+            });
+        });
+        setFaydaModalFarmer(null);
+    };
+
+    const submitSoftDelete = (reason) => {
+        if (!deleteModalFarmer) return;
+        const id = deleteModalFarmer.id;
+        patchFarmerById(id, (f) =>
+            normalizeFarmer({
+                ...f,
+                deleted: true,
+                deletedAt: nowIso(),
+                deletedBy: 'current-user',
+                deleteReason: reason,
+                auditLog: [
+                    createAuditEntry({
+                        type: 'Profile Deleted',
+                        farmerId: id,
+                        message: `Soft delete: ${reason}`,
+                        justification: reason,
+                    }),
+                    ...(f.auditLog || []),
+                ],
+            })
+        );
+        setDeleteModalFarmer(null);
+        setSelectedFarmers((s) => s.filter((x) => x !== id));
+        setViewingFarmer((vf) => {
+            if (vf && vf.id === id) {
+                setActiveTab('list');
+                return null;
+            }
+            return vf;
+        });
+    };
+
+    const runBulkAction = ({ action, status, region, woreda, reason }) => {
+        const ids = new Set(selectedFarmers);
+        let success = 0;
+        let failed = 0;
+        setFarmers((prev) =>
+            prev.map((f) => {
+                if (!ids.has(f.id) || f.deleted) return f;
+                if (action === 'status') {
+                    const from = f.registryStatus || f.status;
+                    success++;
+                    return normalizeFarmer({
+                        ...f,
+                        registryStatus: status,
+                        status,
+                        lastUpdatedAt: nowIso(),
+                        statusHistory: [
+                            { at: nowIso(), from, to: status, reason: reason || 'Bulk', by: 'current-user' },
+                            ...(f.statusHistory || []),
+                        ],
+                        auditLog: [
+                            createAuditEntry({
+                                type: 'Status Changed',
+                                farmerId: f.id,
+                                message: 'Bulk status update',
+                                before: { status: from },
+                                after: { status },
+                                justification: reason,
+                            }),
+                            ...(f.auditLog || []),
+                        ],
+                    });
+                }
+                if (action === 'assign' && region) {
+                    success++;
+                    return normalizeFarmer({
+                        ...f,
+                        region,
+                        woreda: woreda || f.woreda,
+                        lastUpdatedAt: nowIso(),
+                        auditLog: [
+                            createAuditEntry({
+                                type: 'Profile Updated',
+                                farmerId: f.id,
+                                message: 'Bulk region/woreda reassignment',
+                                after: { region, woreda: woreda || f.woreda },
+                                justification: reason,
+                            }),
+                            ...(f.auditLog || []),
+                        ],
+                    });
+                }
+                if (action === 'verify') {
+                    const fid = (f.faydaId || f.nationalId || '').trim();
+                    if (!fid || findFarmerWithFaydaId(prev, fid, f.id)) {
+                        failed++;
+                        return f;
+                    }
+                    success++;
+                    return normalizeFarmer({
+                        ...f,
+                        verificationStatus: 'Verified',
+                        verificationDate: nowIso().split('T')[0],
+                        verifiedBy: 'current-user',
+                        auditLog: [
+                            createAuditEntry({
+                                type: 'Fayda Verification',
+                                farmerId: f.id,
+                                message: 'Bulk verify — ID unique in registry (mock).',
+                            }),
+                            ...(f.auditLog || []),
+                        ],
+                    });
+                }
+                if (action === 'delete') {
+                    success++;
+                    return normalizeFarmer({
+                        ...f,
+                        deleted: true,
+                        deletedAt: nowIso(),
+                        deletedBy: 'current-user',
+                        deleteReason: reason || 'Bulk delete',
+                        auditLog: [
+                            createAuditEntry({
+                                type: 'Profile Deleted',
+                                farmerId: f.id,
+                                message: reason || 'Bulk soft delete',
+                                justification: reason,
+                            }),
+                            ...(f.auditLog || []),
+                        ],
+                    });
+                }
+                return f;
+            })
+        );
+        setBulkModal(null);
+        setSelectedFarmers([]);
+        setBulkResultMessage(
+            `Bulk ${action} complete (demo): ${success} updated${failed ? `, ${failed} skipped (Fayda conflict or missing ID)` : ''}.`
+        );
+        setTimeout(() => setBulkResultMessage(null), 5000);
+    };
+
+    const exportRows = (list) => {
+        const rows = list.map((f) => ({
+            'Farmer ID': f.id,
+            'Full Name (EN)': f.fullNameLatin || f.name,
+            'Full Name (Local)': f.fullNameLocal || f.fullNameAmharic || '',
+            Gender: f.gender,
+            'Age / DOB': f.dob || f.age,
+            Kebele: f.kebele,
+            Woreda: f.woreda,
+            Region: f.region,
+            'Registration Date': f.registeredDate,
+            Status: f.registryStatus || f.status,
+            'Fayda ID': f.faydaId || f.nationalId || '',
+        }));
+        return rows;
+    };
+
+    const handleExportCSV = (subsetIds) => {
         setExportMessage({ type: 'info', text: 'Preparing CSV export...' });
         setTimeout(() => {
             try {
-                const headers = ["Farmer ID", "Name", "Gender", "Age", "Phone", "Email", "Kebele", "Woreda", "Region", "Registered Date", "Acres", "Status"];
-                const csvData = filteredFarmersList.map(f => [
-                    `"${f.id}"`, `"${f.name}"`, `"${f.gender}"`, `"${f.age}"`, `"${f.phone}"`, `"${f.email}"`,
-                    `"${f.kebele}"`, `"${f.woreda}"`, `"${f.region}"`, `"${f.registeredDate}"`, `"${f.acres}"`, `"${f.status}"`
-                ].join(","));
-
-                const csvContent = [headers.join(","), ...csvData].join("\n");
+                const source =
+                    subsetIds && subsetIds.length > 0
+                        ? filteredFarmersList.filter((f) => subsetIds.includes(f.id))
+                        : filteredFarmersList;
+                const rows = exportRows(source);
+                if (!rows.length) {
+                    setExportMessage({ type: 'error', text: 'No rows to export.' });
+                    setTimeout(() => setExportMessage(null), 2500);
+                    return;
+                }
+                const headers = Object.keys(rows[0] || {});
+                const csvData = rows.map((row) => headers.map((h) => `"${String(row[h] ?? '').replace(/"/g, '""')}"`).join(','));
+                const csvContent = [headers.join(','), ...csvData].join('\n');
                 const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                const link = document.createElement("a");
+                const link = document.createElement('a');
                 const url = URL.createObjectURL(blob);
-                link.setAttribute("href", url);
-                link.setAttribute("download", `OAN_Farmer_Registry_${new Date().toISOString().split('T')[0]}.csv`);
+                link.setAttribute('href', url);
+                link.setAttribute('download', `OAN_Farmer_Registry_${new Date().toISOString().split('T')[0]}.csv`);
                 link.style.visibility = 'hidden';
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
-                setExportMessage({ type: 'success', text: 'CSV Exported Successfully!' });
+                setExportMessage({ type: 'success', text: 'CSV exported successfully.' });
                 setShowDownloadOptions(false);
                 setTimeout(() => setExportMessage(null), 3000);
             } catch (err) {
                 console.error(err);
-                setExportMessage({ type: 'error', text: 'CSV Export Failed' });
+                setExportMessage({ type: 'error', text: 'CSV export failed' });
                 setTimeout(() => setExportMessage(null), 3000);
             }
-        }, 800);
+        }, 400);
+    };
+
+    const handleExportExcel = (subsetIds) => {
+        try {
+            const source =
+                subsetIds && subsetIds.length > 0
+                    ? filteredFarmersList.filter((f) => subsetIds.includes(f.id))
+                    : filteredFarmersList;
+            const rows = exportRows(source);
+            if (!rows.length) {
+                setExportMessage({ type: 'error', text: 'No rows to export.' });
+                setTimeout(() => setExportMessage(null), 2500);
+                return;
+            }
+            const ws = XLSX.utils.json_to_sheet(rows);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Farmers');
+            XLSX.writeFile(wb, `OAN_Farmer_Registry_${new Date().toISOString().split('T')[0]}.xlsx`);
+            setExportMessage({ type: 'success', text: 'Excel file downloaded.' });
+            setShowDownloadOptions(false);
+            setTimeout(() => setExportMessage(null), 3000);
+        } catch (e) {
+            console.error(e);
+            setExportMessage({ type: 'error', text: 'Excel export failed' });
+            setTimeout(() => setExportMessage(null), 3000);
+        }
+    };
+
+    const handleAuditExport = (format, entries) => {
+        const name = `audit_${auditModalFarmer?.id || 'farmer'}.${format}`;
+        if (format === 'json') {
+            const blob = new Blob([JSON.stringify(entries, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = name;
+            a.click();
+        } else {
+            const headers = ['ts', 'type', 'message', 'userId', 'role'];
+            const lines = [headers.join(',')].concat(
+                entries.map((e) => headers.map((h) => `"${String(e[h] ?? '').replace(/"/g, '""')}"`).join(','))
+            );
+            const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = name;
+            a.click();
+        }
     };
 
     const handleExportPDF = () => {
@@ -476,7 +956,7 @@ const FarmerRegistry = ({
 
 
 
-                            <div className="registry-table-container">
+                            <div ref={registryTableFullscreenRef} className="registry-table-container">
                                 <div className="recent-activities card width-card" style={{ minHeight: '440px' }}>
                                     <div className="card-header-main-v6">
                                         <h3 className="card-title-v6"><Users size={18} /> Farmer Registry List</h3>
@@ -487,38 +967,78 @@ const FarmerRegistry = ({
                                                 <input
                                                     type="text"
                                                     className="search-input-v6"
-                                                    placeholder="Search by Farmer ID, Name, Kebele..."
+                                                    placeholder="Farmer ID, name (EN / local), kebele…"
                                                     value={searchTerm}
                                                     onChange={(e) => setSearchTerm(e.target.value)}
                                                 />
                                             </div>
-
-
-
+                                            <button
+                                                type="button"
+                                                className="registry-clear-filters"
+                                                onClick={() => setSelectAllPagesOpen(true)}
+                                                title="Select every row matching current filters"
+                                            >
+                                                Select all matching ({filteredFarmersList.length})
+                                            </button>
+                                            <button type="button" className="registry-clear-filters" onClick={clearAllFilters}>
+                                                Clear filters
+                                            </button>
                                             <button className="add-farmer-btn-v6" onClick={() => setActiveTab('new')}>
                                                 <Plus size={18} />
                                                 <span>Add Farmer</span>
                                             </button>
-
+                                            {isRegistryTableFullscreen ? (
+                                                <button
+                                                    type="button"
+                                                    className="registry-fullscreen-btn-v6"
+                                                    onClick={exitRegistryTableFullscreen}
+                                                    title="Exit full screen (Esc)"
+                                                >
+                                                    <Minimize2 size={18} />
+                                                    <span>Exit full screen</span>
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    className="registry-fullscreen-btn-v6"
+                                                    onClick={enterRegistryTableFullscreen}
+                                                    title="Expand table to full screen"
+                                                >
+                                                    <Maximize2 size={18} />
+                                                    <span>Full screen</span>
+                                                </button>
+                                            )}
                                             <div className="card-download-wrapper-v6" ref={downloadMenuRef}>
                                                 <button
+                                                    type="button"
                                                     className="download-btn-card-v6"
                                                     onClick={() => setShowDownloadOptions(!showDownloadOptions)}
                                                 >
                                                     <Download size={18} />
-                                                    <span>Download</span>
+                                                    <span>Export</span>
                                                     <ChevronDown size={14} className={showDownloadOptions ? 'rotated' : ''} />
                                                 </button>
-
                                                 {showDownloadOptions && (
                                                     <div className="download-dropdown-card-v6">
-                                                        <button className="download-item-card-v6" onClick={handleExportCSV}>
+                                                        <button
+                                                            type="button"
+                                                            className="download-item-card-v6"
+                                                            onClick={() => handleExportCSV(selectedFarmers.length ? selectedFarmers : null)}
+                                                        >
                                                             <FileSpreadsheet size={16} color="#10b981" />
-                                                            <span>Export CSV</span>
+                                                            <span>CSV {selectedFarmers.length ? '(selected)' : '(filtered)'}</span>
                                                         </button>
-                                                        <button className="download-item-card-v6" onClick={handleExportPDF}>
+                                                        <button
+                                                            type="button"
+                                                            className="download-item-card-v6"
+                                                            onClick={() => handleExportExcel(selectedFarmers.length ? selectedFarmers : null)}
+                                                        >
+                                                            <FileSpreadsheet size={16} color="#2563eb" />
+                                                            <span>Excel {selectedFarmers.length ? '(selected)' : '(filtered)'}</span>
+                                                        </button>
+                                                        <button type="button" className="download-item-card-v6" onClick={handleExportPDF}>
                                                             <FileText size={16} color="#ef4444" />
-                                                            <span>Export PDF</span>
+                                                            <span>Summary PDF (demo)</span>
                                                         </button>
                                                     </div>
                                                 )}
@@ -526,130 +1046,352 @@ const FarmerRegistry = ({
                                         </div>
                                     </div>
 
+                                    {selectedFarmers.length > 0 && (
+                                        <div className="registry-bulk-bar">
+                                            <span>{selectedFarmers.length} selected</span>
+                                            <div className="registry-bulk-actions">
+                                                <button type="button" className="registry-chip-btn" onClick={() => setBulkModal('status')}>
+                                                    Bulk update status
+                                                </button>
+                                                <button type="button" className="registry-chip-btn" onClick={() => setBulkModal('assign')}>
+                                                    Assign region / woreda
+                                                </button>
+                                                <button type="button" className="registry-chip-btn" onClick={() => setBulkModal('verify')}>
+                                                    Bulk verify (Fayda ID)
+                                                </button>
+                                                <button type="button" className="registry-chip-btn" onClick={() => handleExportCSV(selectedFarmers)}>
+                                                    Export selected CSV
+                                                </button>
+                                                <button type="button" className="registry-chip-btn" onClick={() => handleExportExcel(selectedFarmers)}>
+                                                    Export selected Excel
+                                                </button>
+                                                {(userRole === 'Admin' || userRole === 'Super User') && (
+                                                    <button type="button" className="registry-chip-btn danger" onClick={() => setBulkModal('delete')}>
+                                                        Soft delete selected
+                                                    </button>
+                                                )}
+                                                <button type="button" className="registry-chip-btn" onClick={() => setSelectedFarmers([])}>
+                                                    Clear selection
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     <div className="table-responsive" style={{ marginTop: '0px' }}>
-                                        <table className="registry-table registry-list-table">
+                                        <table className="registry-table registry-list-table registry-table-spec">
                                             <thead>
                                                 <tr>
-                                                    <th className="checkbox-col"><div className="header-cell-checkbox"><input type="checkbox" className="modern-checkbox-s" onChange={handleSelectAll} checked={currentFarmers.length > 0 && selectedFarmers.length === currentFarmers.length} /></div></th>
-                                                    <th onClick={() => requestSort('id')} className="id-col sortable-col"><div className="header-cell-standard">Farmer ID</div></th>
-                                                    <th className="details-col"><div className="header-cell-standard">Farmer Details</div></th>
-                                                    <th className="kebele-col"><div className="header-cell-standard">Kebele</div></th>
-                                                    <th className="woreda-col"><div className="header-cell-standard">Woreda</div></th>
-                                                    <th className="region-col">
+                                                    <th className="checkbox-col">
+                                                        <div className="header-cell-checkbox">
+                                                            <input
+                                                                type="checkbox"
+                                                                className="modern-checkbox-s"
+                                                                onChange={handleSelectAll}
+                                                                checked={
+                                                                    currentFarmers.length > 0 &&
+                                                                    currentFarmers.every((f) => selectedFarmers.includes(f.id))
+                                                                }
+                                                            />
+                                                        </div>
+                                                    </th>
+                                                    <th onClick={() => requestSort('fullNameLatin')} className="details-col sortable-col">
+                                                        <div className="header-cell-standard">Farmer</div>
+                                                    </th>
+                                                    <th onClick={() => requestSort('kebele')} className="sortable-col">
+                                                        <div className="header-cell-standard">Kebele</div>
+                                                    </th>
+                                                    <th className="woreda-col">
                                                         <div className="header-cell-standard header-with-filtered-icon">
-                                                            <span>Region</span>
-                                                            <div className="status-filter-trigger-wrapper" ref={regionFilterRef}>
-                                                                <button className="filter-trigger-icon-bt" onClick={(e) => { e.stopPropagation(); setRegionFilterOpen(!regionFilterOpen); }}><Filter size={13} /></button>
-                                                                {regionFilterOpen && (
+                                                            <span onClick={() => requestSort('woreda')} className="sortable-col" role="button">
+                                                                Woreda
+                                                            </span>
+                                                            <div className="status-filter-trigger-wrapper" ref={woredaFilterRef}>
+                                                                <button
+                                                                    type="button"
+                                                                    className="filter-trigger-icon-bt"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setWoredaFilterOpen(!woredaFilterOpen);
+                                                                    }}
+                                                                >
+                                                                    <Filter size={13} />
+                                                                </button>
+                                                                {woredaFilterOpen && (
                                                                     <div className="status-filter-dropdown prestige-dropdown region-scroll-dropdown">
-                                                                        <div className="filter-dropdown-title">Filter Region</div>
+                                                                        <div className="filter-dropdown-title">Filter Woreda</div>
                                                                         <div className="filter-options-list">
-                                                                            <label className="filter-option-item"><input type="checkbox" checked={selectedRegions.includes('All Regions')} onChange={() => toggleRegionFilter('All Regions')} /><span className="filter-status-text">All Regions</span></label>
-                                                                            {regions.map(region => <label key={region} className="filter-option-item"><input type="checkbox" checked={selectedRegions.includes(region)} onChange={() => toggleRegionFilter(region)} /><span className="filter-status-text">{region}</span></label>)}
+                                                                            <label className="filter-option-item">
+                                                                                <input
+                                                                                    type="checkbox"
+                                                                                    checked={selectedWoredas.includes('All Woredas')}
+                                                                                    onChange={() => toggleWoredaFilter('All Woredas')}
+                                                                                />
+                                                                                <span className="filter-status-text">All Woredas</span>
+                                                                            </label>
+                                                                            {allWoredas.map((w) => (
+                                                                                <label key={w} className="filter-option-item">
+                                                                                    <input
+                                                                                        type="checkbox"
+                                                                                        checked={selectedWoredas.includes(w)}
+                                                                                        onChange={() => toggleWoredaFilter(w)}
+                                                                                    />
+                                                                                    <span className="filter-status-text">{w}</span>
+                                                                                </label>
+                                                                            ))}
                                                                         </div>
                                                                     </div>
                                                                 )}
                                                             </div>
                                                         </div>
                                                     </th>
-                                                    <th className="agri-col">
+                                                    <th className="region-col">
                                                         <div className="header-cell-standard header-with-filtered-icon">
-                                                            <span>Agriculture Data</span>
-                                                            <div className="status-filter-trigger-wrapper" ref={agriFilterRef}>
-                                                                <button className="filter-trigger-icon-bt" onClick={(e) => { e.stopPropagation(); setAgriFilterOpen(!agriFilterOpen); }}><Filter size={13} /></button>
-                                                                {agriFilterOpen && (
+                                                            <span onClick={() => requestSort('region')} className="sortable-col" role="button">
+                                                                Region
+                                                            </span>
+                                                            <div className="status-filter-trigger-wrapper" ref={regionFilterRef}>
+                                                                <button
+                                                                    type="button"
+                                                                    className="filter-trigger-icon-bt"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setRegionFilterOpen(!regionFilterOpen);
+                                                                    }}
+                                                                >
+                                                                    <Filter size={13} />
+                                                                </button>
+                                                                {regionFilterOpen && (
                                                                     <div className="status-filter-dropdown prestige-dropdown region-scroll-dropdown">
-                                                                        <div className="filter-dropdown-title">Filter by Crop</div>
+                                                                        <div className="filter-dropdown-title">Filter Region</div>
                                                                         <div className="filter-options-list">
-                                                                            <label className="filter-option-item"><input type="checkbox" checked={selectedCrops.includes('All Crops')} onChange={() => toggleCropFilter('All Crops')} /><span className="filter-status-text">All Crops</span></label>
-                                                                            {crops.map(crop => <label key={crop} className="filter-option-item"><input type="checkbox" checked={selectedCrops.includes(crop)} onChange={() => toggleCropFilter(crop)} /><span className="filter-status-text">{crop}</span></label>)}
+                                                                            <label className="filter-option-item">
+                                                                                <input
+                                                                                    type="checkbox"
+                                                                                    checked={selectedRegions.includes('All Regions')}
+                                                                                    onChange={() => toggleRegionFilter('All Regions')}
+                                                                                />
+                                                                                <span className="filter-status-text">All Regions</span>
+                                                                            </label>
+                                                                            {regions.map((region) => (
+                                                                                <label key={region} className="filter-option-item">
+                                                                                    <input
+                                                                                        type="checkbox"
+                                                                                        checked={selectedRegions.includes(region)}
+                                                                                        onChange={() => toggleRegionFilter(region)}
+                                                                                    />
+                                                                                    <span className="filter-status-text">{region}</span>
+                                                                                </label>
+                                                                            ))}
                                                                         </div>
                                                                     </div>
                                                                 )}
                                                             </div>
                                                         </div>
+                                                    </th>
+                                                    <th onClick={() => requestSort('gender')} className="sortable-col">
+                                                        <div className="header-cell-standard">Gender</div>
+                                                    </th>
+                                                    <th onClick={() => requestSort('ageYears')} className="sortable-col">
+                                                        <div className="header-cell-standard">Age / DOB</div>
+                                                    </th>
+                                                    <th onClick={() => requestSort('registeredDate')} className="sortable-col">
+                                                        <div className="header-cell-standard">Reg. date</div>
                                                     </th>
                                                     <th className="status-col">
                                                         <div className="header-cell-standard header-with-filtered-icon">
                                                             <span>Status</span>
                                                             <div className="status-filter-trigger-wrapper" ref={statusFilterRef}>
-                                                                <button className="filter-trigger-icon-bt" onClick={(e) => { e.stopPropagation(); setStatusFilterOpen(!statusFilterOpen); }}><Filter size={13} /></button>
+                                                                <button
+                                                                    type="button"
+                                                                    className="filter-trigger-icon-bt"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setStatusFilterOpen(!statusFilterOpen);
+                                                                    }}
+                                                                >
+                                                                    <Filter size={13} />
+                                                                </button>
                                                                 {statusFilterOpen && (
                                                                     <div className="status-filter-dropdown prestige-dropdown">
                                                                         <div className="filter-dropdown-title">Filter Status</div>
                                                                         <div className="filter-options-list">
-                                                                            {['Verified', 'Pending', 'Rejected'].map(status => <label key={status} className="filter-option-item"><input type="checkbox" checked={selectedStatuses.includes(status)} onChange={() => toggleStatusFilter(status)} /><span className={`filter-status-text ${status.toLowerCase()}`}>{status}</span></label>)}
+                                                                            {REGISTRY_STATUSES.map((status) => (
+                                                                                <label key={status} className="filter-option-item">
+                                                                                    <input
+                                                                                        type="checkbox"
+                                                                                        checked={selectedStatuses.includes(status)}
+                                                                                        onChange={() => toggleStatusFilter(status)}
+                                                                                    />
+                                                                                    <span className="filter-status-text">{status}</span>
+                                                                                </label>
+                                                                            ))}
                                                                         </div>
                                                                     </div>
                                                                 )}
                                                             </div>
                                                         </div>
                                                     </th>
-                                                    <th className="kisan-col">
-                                                        <div className="header-cell-standard header-with-filtered-icon">
-                                                            <span>Kisan Card</span>
-                                                            <div className="status-filter-trigger-wrapper" ref={kisanFilterRef}>
-                                                                <button className="filter-trigger-icon-bt" onClick={(e) => { e.stopPropagation(); setKisanFilterOpen(!kisanFilterOpen); }}><Filter size={13} /></button>
-                                                                {kisanFilterOpen && (
-                                                                    <div className="status-filter-dropdown prestige-dropdown">
-                                                                        <div className="filter-dropdown-title">Filter Kisan Card</div>
-                                                                        <div className="filter-options-list">
-                                                                            {['Active', 'Inactive'].map(status => <label key={status} className="filter-option-item"><input type="checkbox" checked={selectedKisanStatuses.includes(status)} onChange={() => toggleKisanFilter(status)} /><span className="filter-status-text">{status}</span></label>)}
-                                                                        </div>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    </th>
-                                                    <th className="actions-col">ACTIONS</th>
+                                                    <th className="actions-col">Actions</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 {currentFarmers.length > 0 ? (
-                                                    currentFarmers.map((farmer) => (
-                                                        <tr key={farmer.id} className={selectedFarmers.includes(farmer.id) ? 'selected-row' : ''}>
-                                                            <td className="checkbox-col" data-label="Select"><div className="td-cell-checkbox"><input type="checkbox" className="modern-checkbox-s" checked={selectedFarmers.includes(farmer.id)} onChange={() => handleSelectFarmer(farmer.id)} /></div></td>
-                                                            <td className="id-col id-col-featured" data-label="Farmer ID">{farmer.id}</td>
-                                                            <td className="details-col" data-label="Farmer Details">
-                                                                <div className="farmer-details-vertical-stack">
-                                                                    <img src={farmer.photo} alt={farmer.name} className="farmer-stack-avatar-top" />
-                                                                    <div className="farmer-info-content-v2">
-                                                                        <div className="farmer-main-name-top">{farmer.name}</div>
-                                                                        <div className="farmer-meta-stack">
-                                                                            <div className="farmer-meta-item"><User size={14} className="meta-icon-v3" /><span>{farmer.gender} - {farmer.age}</span></div>
-                                                                            <div className="farmer-meta-item"><Calendar size={14} className="meta-icon-v3" /><span>{farmer.registeredDate}</span></div>
-                                                                            <div className="farmer-meta-item"><Mail size={14} className="meta-icon-v3" /><span>{farmer.email}</span></div>
-                                                                            <div className="farmer-meta-item"><Phone size={14} className="meta-icon-v3" /><span>{farmer.phone}</span></div>
+                                                    currentFarmers.map((farmer) => {
+                                                        const st = farmer.registryStatus || farmer.status;
+                                                        return (
+                                                            <tr
+                                                                key={farmer.id}
+                                                                className={[
+                                                                    selectedFarmers.includes(farmer.id) ? 'selected-row' : '',
+                                                                    openActionMenuId === farmer.id ? 'registry-row-actions-open' : '',
+                                                                ]
+                                                                    .filter(Boolean)
+                                                                    .join(' ')}
+                                                            >
+                                                                <td className="checkbox-col" data-label="Select">
+                                                                    <div className="td-cell-checkbox">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            className="modern-checkbox-s"
+                                                                            checked={selectedFarmers.includes(farmer.id)}
+                                                                            onChange={() => handleSelectFarmer(farmer.id)}
+                                                                        />
+                                                                    </div>
+                                                                </td>
+                                                                <td className="details-col" data-label="Farmer">
+                                                                    <div className="farmer-details-vertical-stack">
+                                                                        <img
+                                                                            src={farmer.photo}
+                                                                            alt=""
+                                                                            className="farmer-stack-avatar-top"
+                                                                        />
+                                                                        <div className="farmer-info-content-v2">
+                                                                            <div className="farmer-main-name-top">
+                                                                                {farmer.fullNameLatin || farmer.name}
+                                                                            </div>
+                                                                            <div className="farmer-local-name-sub">
+                                                                                {farmer.fullNameLocal || farmer.fullNameAmharic || '—'}
+                                                                            </div>
+                                                                            <button
+                                                                                type="button"
+                                                                                className="farmer-id-chip-btn"
+                                                                                onClick={() => handleViewFarmer(farmer.id)}
+                                                                            >
+                                                                                {farmer.id}
+                                                                            </button>
+                                                                            <div className="farmer-meta-stack">
+                                                                                <div className="farmer-meta-item">
+                                                                                    <Mail size={14} className="meta-icon-v3" />
+                                                                                    <span>{farmer.email}</span>
+                                                                                </div>
+                                                                                <div className="farmer-meta-item">
+                                                                                    <Phone size={14} className="meta-icon-v3" />
+                                                                                    <span>{farmer.phone}</span>
+                                                                                </div>
+                                                                            </div>
                                                                         </div>
                                                                     </div>
-                                                                </div>
-                                                            </td>
-                                                            <td className="kebele-col" data-label="Kebele">{farmer.kebele}</td>
-                                                            <td className="woreda-col" data-label="Woreda">{farmer.woreda}</td>
-                                                            <td className="region-col" data-label="Region">{farmer.region}</td>
-                                                            <td className="agri-col" data-label="Agriculture Data"><div className="agri-data-stack"><div className="acre-text">{farmer.acres}</div><div className="crop-tags">{farmer.crops.map((c, i) => <span key={i} className="crop-tag-v2">{c}</span>)}</div></div></td>
-                                                            <td className="status-col" data-label="Status"><div className={`status-pill-v4 ${farmer.status.toLowerCase()}`}>{farmer.status}</div></td>
-                                                            <td className="kisan-col" data-label="Kisan Card"><div className={`kisan-badge-v4 ${farmer.kisanCard.toLowerCase()}`}>{farmer.kisanCard}</div></td>
-                                                            <td className="actions-col" data-label="Actions">
-                                                                <button className="dots-trigger-v5" onClick={() => setOpenActionMenuId(openActionMenuId === farmer.id ? null : farmer.id)}><MoreVertical size={18} /></button>
-                                                                {openActionMenuId === farmer.id && (
-                                                                    <div className="action-popup-v5">
-                                                                        <button className="action-item-v5" onClick={() => handleViewFarmer(farmer.id)}><Eye size={16} /> View</button>
-                                                                        <button className="action-item-v5" onClick={() => handleEditRegistration(farmer.id)}><Edit size={16} /> Edit</button>
-                                                                    </div>
-                                                                )}
-                                                            </td>
-                                                        </tr>
-                                                    ))
+                                                                </td>
+                                                                <td className="kebele-col" data-label="Kebele">
+                                                                    {farmer.kebele}
+                                                                </td>
+                                                                <td className="woreda-col" data-label="Woreda">
+                                                                    {farmer.woreda}
+                                                                </td>
+                                                                <td className="region-col" data-label="Region">
+                                                                    {farmer.region}
+                                                                </td>
+                                                                <td data-label="Gender">{farmer.gender}</td>
+                                                                <td data-label="Age">{farmer.dob ? `${farmer.age} / ${farmer.dob}` : farmer.age}</td>
+                                                                <td data-label="Registered">{farmer.registeredDate}</td>
+                                                                <td className="status-col" data-label="Status">
+                                                                    <div className={`status-pill-v4 ${statusCssClass(st)}`}>{st}</div>
+                                                                </td>
+                                                                <td className="actions-col" data-label="Actions">
+                                                                    <button
+                                                                        type="button"
+                                                                        className="dots-trigger-v5"
+                                                                        onClick={() =>
+                                                                            setOpenActionMenuId(openActionMenuId === farmer.id ? null : farmer.id)
+                                                                        }
+                                                                    >
+                                                                        <MoreVertical size={18} />
+                                                                    </button>
+                                                                    {openActionMenuId === farmer.id && (
+                                                                        <div className="action-popup-v5">
+                                                                            <button
+                                                                                type="button"
+                                                                                className="action-item-v5"
+                                                                                onClick={() => handleViewFarmer(farmer.id)}
+                                                                            >
+                                                                                <Eye size={16} /> View
+                                                                            </button>
+                                                                            <button
+                                                                                type="button"
+                                                                                className="action-item-v5"
+                                                                                onClick={() => handleEditRegistration(farmer.id)}
+                                                                            >
+                                                                                <Edit size={16} /> Edit
+                                                                            </button>
+                                                                            <button
+                                                                                type="button"
+                                                                                className="action-item-v5"
+                                                                                onClick={() => {
+                                                                                    setStatusModalFarmer(farmer);
+                                                                                    setOpenActionMenuId(null);
+                                                                                }}
+                                                                            >
+                                                                                <ClipboardCheck size={16} /> Update status
+                                                                            </button>
+                                                                            <button
+                                                                                type="button"
+                                                                                className="action-item-v5"
+                                                                                onClick={() => {
+                                                                                    setFaydaModalFarmer(farmer);
+                                                                                    setOpenActionMenuId(null);
+                                                                                }}
+                                                                            >
+                                                                                <ShieldCheck size={16} /> Verify (Fayda)
+                                                                            </button>
+                                                                            <button
+                                                                                type="button"
+                                                                                className="action-item-v5"
+                                                                                onClick={() => {
+                                                                                    setAuditModalFarmer(farmer);
+                                                                                    setOpenActionMenuId(null);
+                                                                                }}
+                                                                            >
+                                                                                <History size={16} /> Audit history
+                                                                            </button>
+                                                                            {(userRole === 'Admin' || userRole === 'Super User') && (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    className="action-item-v5"
+                                                                                    onClick={() => {
+                                                                                        setDeleteModalFarmer(farmer);
+                                                                                        setOpenActionMenuId(null);
+                                                                                    }}
+                                                                                >
+                                                                                    <Trash2 size={16} /> Delete
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
+                                                                    )}
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })
                                                 ) : (
                                                     <tr>
-                                                        <td colSpan="11">
+                                                        <td colSpan={10}>
                                                             <div className="empty-state-container">
                                                                 <div className="empty-icon-v5">
                                                                     <Search size={32} />
                                                                 </div>
                                                                 <h4 className="empty-title-v5">No Farmers Found</h4>
-                                                                <p className="empty-subtitle-v5">We couldn't find any farmers matching your current filters or search query.</p>
+                                                                <p className="empty-subtitle-v5">
+                                                                    We couldn&apos;t find any farmers matching your current filters or search query.
+                                                                </p>
                                                             </div>
                                                         </td>
                                                     </tr>
@@ -661,6 +1403,22 @@ const FarmerRegistry = ({
                                     {sortedFarmers.length > 0 && (
                                         <div className="registry-footer-v5">
                                             <div className="footer-stats-v5">Showing <span className="highlight-v5">{indexOfFirstItem + 1}</span> to <span className="highlight-v5">{Math.min(indexOfLastItem, sortedFarmers.length)}</span> of <span className="highlight-v5">{sortedFarmers.length}</span> farmers</div>
+                                            <div className="registry-page-size">
+                                                <span>Rows per page</span>
+                                                <select
+                                                    value={itemsPerPage}
+                                                    onChange={(e) => {
+                                                        setItemsPerPage(Number(e.target.value));
+                                                        setCurrentPage(1);
+                                                    }}
+                                                >
+                                                    {[10, 25, 50, 100].map((n) => (
+                                                        <option key={n} value={n}>
+                                                            {n}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
                                             <div className="pagination-controls-v5">
                                                 <button className="pagination-btn-v5" disabled={currentPage === 1} onClick={() => setCurrentPage(currentPage - 1)}>Prev</button>
                                                 <div className="pagination-pages-v5">
@@ -680,6 +1438,7 @@ const FarmerRegistry = ({
                     {activeTab === 'new' && (
                         <FarmerRegistrationForm
                             initialData={editingFarmer}
+                            existingFarmers={farmers}
                             onCancel={() => {
                                 setEditingFarmer(null);
                                 if (viewingFarmer) {
@@ -696,7 +1455,7 @@ const FarmerRegistry = ({
                     )}
 
                     {activeTab === 'profile' && viewingFarmer && (
-                        <div className="farmer-profile-container-v6 animation-fadeIn">
+                        <div className="farmer-profile-container-v6 animation-fadeIn" key={viewingFarmer.id}>
                             <div
                                 className="back-navigator-v6"
                                 onClick={() => {
@@ -717,17 +1476,23 @@ const FarmerRegistry = ({
                                         </div>
                                         <div className="profile-text-content-v6">
                                             <h2 className="profile-name-v6">{viewingFarmer.name}</h2>
-                                            <div className="profile-subname-v6">Dereje Bekele</div>
+                                            <div className="profile-subname-v6">{viewingFarmer.fullNameLocal || viewingFarmer.fullNameAmharic || '—'}</div>
                                             <div className="profile-badges-v6">
                                                 <span className="profile-id-badge-v6">{viewingFarmer.id}</span>
-                                                <span className={`status-pill-v4 ${viewingFarmer.status.toLowerCase()}`}>{viewingFarmer.status}</span>
-                                                <span className="biometric-badge-v6">Biometric Enrolled</span>
+                                                <span className={`status-pill-v4 ${statusCssClass(viewingFarmer.registryStatus || viewingFarmer.status)}`}>{viewingFarmer.registryStatus || viewingFarmer.status}</span>
+                                                <span className="biometric-badge-v6">
+                                                    Fayda: {viewingFarmer.verificationStatus || 'Unverified'}
+                                                    {viewingFarmer.verificationDate ? ` · ${viewingFarmer.verificationDate}` : ''}
+                                                </span>
                                             </div>
                                         </div>
                                     </div>
                                     <div className="profile-header-actions-v6">
                                         <button className="profile-action-btn-v6" onClick={() => setShowRecordPreview(true)}><Eye size={16} /> Full Record Preview</button>
                                         <button className="profile-action-btn-v6" onClick={() => handleEditRegistration(viewingFarmer.id)}><Edit size={16} /> Edit</button>
+                                        <button type="button" className="profile-action-btn-v6" onClick={() => setStatusModalFarmer(viewingFarmer)}><ClipboardCheck size={16} /> Update status</button>
+                                        <button type="button" className="profile-action-btn-v6" onClick={() => setFaydaModalFarmer(viewingFarmer)}><ShieldCheck size={16} /> Verify (Fayda)</button>
+                                        <button type="button" className="profile-action-btn-v6" onClick={() => setAuditModalFarmer(viewingFarmer)}><History size={16} /> Audit log</button>
                                         <button className="profile-action-btn-v6" onClick={() => setShowIdPreview(true)}><Printer size={16} /> Print ID</button>
                                     </div>
                                 </div>
@@ -758,7 +1523,7 @@ const FarmerRegistry = ({
                                         <Users size={18} className="stat-icon-v6" />
                                         <div className="stat-details-v6">
                                             <span className="stat-label-v6">Household</span>
-                                            <span className="stat-value-v6">6 members</span>
+                                            <span className="stat-value-v6">{viewingFarmer.householdSize || 6} members</span>
                                         </div>
                                     </div>
                                 </div>
@@ -770,7 +1535,7 @@ const FarmerRegistry = ({
                                 <div className="profile-main-pane-v6">
                                     {/* Tab Switcher Integrated with Content to match width */}
                                     <div className="profile-tab-switcher-v6">
-                                        {['Personal Info', 'Household & Farming Profile', 'Documents', 'Activity Log'].map(tab => (
+                                        {['Personal Info', 'Household & Farming Profile', 'Documents', 'Related records', 'Status history', 'Audit log'].map(tab => (
                                             <button
                                                 key={tab}
                                                 className={`profile-tab-btn-v6 ${activeProfileTab === tab ? 'active' : ''}`}
@@ -796,7 +1561,20 @@ const FarmerRegistry = ({
                                                         <div className="data-item-v6"><span className="data-label-v6">Secondary Mobile</span><span className="data-value-v6">{viewingFarmer.alternateMobileNumber || "—"}</span></div>
                                                         <div className="data-item-v6"><span className="data-label-v6">Email Address</span><span className="data-value-v6">{viewingFarmer.email || "—"}</span></div>
                                                         <div className="data-item-v6"><span className="data-label-v6">Social Media</span><span className="data-value-v6">{viewingFarmer.socialMediaLink || "—"}</span></div>
-                                                        <div className="data-item-v6"><span className="data-label-v6">National ID</span><span className="data-value-v6">{viewingFarmer.nationalId || "—"}</span></div>
+                                                        <div className="data-item-v6"><span className="data-label-v6">Fayda ID (masked)</span><span className="data-value-v6">{maskFaydaId(viewingFarmer.faydaId || viewingFarmer.nationalId, privilegedViewer)}</span></div>
+                                                        <div className="data-item-v6"><span className="data-label-v6">Verification</span><span className="data-value-v6">{viewingFarmer.verificationStatus || '—'} {viewingFarmer.verifiedBy ? `· by ${viewingFarmer.verifiedBy}` : ''}</span></div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="profile-section-v6 mt-32">
+                                                    <h3 className="pane-card-title-v6">System metadata</h3>
+                                                    <div className="profile-data-grid-v6">
+                                                        <div className="data-item-v6"><span className="data-label-v6">Source system</span><span className="data-value-v6">{viewingFarmer.sourceSystem || '—'}</span></div>
+                                                        <div className="data-item-v6"><span className="data-label-v6">Source ID</span><span className="data-value-v6">{viewingFarmer.sourceId || '—'}</span></div>
+                                                        <div className="data-item-v6"><span className="data-label-v6">Created by</span><span className="data-value-v6">{viewingFarmer.createdBy || '—'}</span></div>
+                                                        <div className="data-item-v6"><span className="data-label-v6">Created at</span><span className="data-value-v6">{viewingFarmer.createdAt || '—'}</span></div>
+                                                        <div className="data-item-v6"><span className="data-label-v6">Last updated by</span><span className="data-value-v6">{viewingFarmer.lastUpdatedBy || '—'}</span></div>
+                                                        <div className="data-item-v6"><span className="data-label-v6">Last updated at</span><span className="data-value-v6">{viewingFarmer.lastUpdatedAt || '—'}</span></div>
                                                     </div>
                                                 </div>
 
@@ -961,27 +1739,95 @@ const FarmerRegistry = ({
                                             </>
                                         )}
 
-                                        {activeProfileTab === 'Activity Log' && (
+                                        {activeProfileTab === 'Related records' && (
                                             <>
-                                                <h3 className="pane-card-title-v6">Activity Log</h3>
-                                                <div className="timeline-v6">
-                                                    <div className="timeline-item-v6">
-                                                        <div className="timeline-dot-v6"></div>
-                                                        <div className="timeline-content-v6">
-                                                            <span className="timeline-date-v6">2024-04-09 10:45 AM</span>
-                                                            <span className="timeline-title-v6">Biometric Enrollment Completed</span>
-                                                            <span className="timeline-desc-v6">Official: Abera Tadesse (ID: OAN-FR-1347)</span>
-                                                        </div>
-                                                    </div>
-                                                    <div className="timeline-item-v6">
-                                                        <div className="timeline-dot-v6"></div>
-                                                        <div className="timeline-content-v6">
-                                                            <span className="timeline-date-v6">2024-04-08 09:20 AM</span>
-                                                            <span className="timeline-title-v6">Profile Created</span>
-                                                            <span className="timeline-desc-v6">Self-registration via Mobile App</span>
-                                                        </div>
-                                                    </div>
+                                                <h3 className="pane-card-title-v6">Related records (illustrative)</h3>
+                                                <p className="registry-muted" style={{ marginBottom: 16 }}>
+                                                    Linked livestock, land parcels, benefits, and transactions will load from integrated registries.
+                                                </p>
+                                                <div className="profile-section-v6">
+                                                    <h4 className="pane-card-title-v6">Livestock</h4>
+                                                    <table className="registry-mini-table">
+                                                        <thead>
+                                                            <tr><th>Tag</th><th>Species</th><th>Status</th></tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <tr><td>LV-{viewingFarmer.id.slice(-3)}-01</td><td>Cattle</td><td>Active</td></tr>
+                                                            <tr><td>LV-{viewingFarmer.id.slice(-3)}-02</td><td>Goat</td><td>Active</td></tr>
+                                                        </tbody>
+                                                    </table>
                                                 </div>
+                                                <div className="profile-section-v6 mt-24">
+                                                    <h4 className="pane-card-title-v6">Land parcels</h4>
+                                                    <table className="registry-mini-table">
+                                                        <thead>
+                                                            <tr><th>Parcel ID</th><th>Size (ha)</th><th>Use</th></tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <tr><td>LND-{viewingFarmer.id.slice(-3)}-A</td><td>1.2</td><td>Mixed crop</td></tr>
+                                                            <tr><td>LND-{viewingFarmer.id.slice(-3)}-B</td><td>0.8</td><td>Pasture</td></tr>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                                <div className="profile-section-v6 mt-24">
+                                                    <h4 className="pane-card-title-v6">Benefits / schemes</h4>
+                                                    <ul className="registry-bullet-list">
+                                                        <li>PSNP — enrolled (mock)</li>
+                                                        <li>Input subsidy 2024 — pending verification</li>
+                                                    </ul>
+                                                </div>
+                                                <div className="profile-section-v6 mt-24">
+                                                    <h4 className="pane-card-title-v6">Transaction history</h4>
+                                                    <table className="registry-mini-table">
+                                                        <thead>
+                                                            <tr><th>Date</th><th>Type</th><th>Amount</th></tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <tr><td>2024-01-12</td><td>Loan disbursement</td><td>ETB 25,000</td></tr>
+                                                            <tr><td>2024-03-02</td><td>Repayment</td><td>ETB 4,200</td></tr>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </>
+                                        )}
+
+                                        {activeProfileTab === 'Status history' && (
+                                            <>
+                                                <h3 className="pane-card-title-v6">Status history</h3>
+                                                <div className="timeline-v6">
+                                                    {(viewingFarmer.statusHistory || []).map((h, idx) => (
+                                                        <div className="timeline-item-v6" key={`${h.at}-${idx}`}>
+                                                            <div className="timeline-dot-v6"></div>
+                                                            <div className="timeline-content-v6">
+                                                                <span className="timeline-date-v6">{h.at}</span>
+                                                                <span className="timeline-title-v6">{h.from} → {h.to}</span>
+                                                                <span className="timeline-desc-v6">{h.reason} · {h.by}</span>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </>
+                                        )}
+
+                                        {activeProfileTab === 'Audit log' && (
+                                            <>
+                                                <h3 className="pane-card-title-v6">Audit log (read-only)</h3>
+                                                <p className="registry-muted">Use Export in the modal for CSV/JSON with filters. Entries are immutable.</p>
+                                                <div className="registry-audit-list" style={{ marginTop: 12 }}>
+                                                    {(viewingFarmer.auditLog || []).map((l) => (
+                                                        <div className="registry-audit-row" key={l.id}>
+                                                            <div className="registry-audit-meta">
+                                                                <span className="registry-audit-ts">{new Date(l.ts).toLocaleString()}</span>
+                                                                <span className="registry-audit-type">{l.type}</span>
+                                                            </div>
+                                                            <div className="registry-audit-msg">{l.message}</div>
+                                                            <div className="registry-audit-sub">{l.userId} ({l.role})</div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                <button type="button" className="registry-btn secondary" style={{ marginTop: 12 }} onClick={() => setAuditModalFarmer(viewingFarmer)}>
+                                                    Open full audit viewer
+                                                </button>
                                             </>
                                         )}
                                     </div>
@@ -1002,7 +1848,7 @@ const FarmerRegistry = ({
                                                 <div className="summary-icon-v6 orange"><Activity size={20} /></div>
                                                 <div className="summary-details-v6">
                                                     <span className="summary-label-v6">Livestock</span>
-                                                    <span className="summary-value-v6">6 animals</span>
+                                                    <span className="summary-value-v6">{viewingFarmer.livestockCount ?? 6} animals</span>
                                                 </div>
                                             </div>
                                             <div className="summary-item-v6">
@@ -1027,6 +1873,91 @@ const FarmerRegistry = ({
                     )}
                 </div>
             </main>
+
+            {bulkResultMessage && (
+                <div className="export-toast success" style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 11000 }}>
+                    {bulkResultMessage}
+                </div>
+            )}
+
+            {registrationSuccess && (
+                <div className="registry-modal-overlay" onClick={() => setRegistrationSuccess(null)}>
+                    <div className="registry-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="registry-modal-header">
+                            <h3>Registration submitted</h3>
+                            <button type="button" className="registry-modal-close" onClick={() => setRegistrationSuccess(null)} aria-label="Close">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="registry-modal-body">
+                            <p>
+                                New farmer ID: <strong>{registrationSuccess.id}</strong>
+                            </p>
+                            <p className="registry-muted">{registrationSuccess.name}</p>
+                        </div>
+                        <div className="registry-modal-footer">
+                            <button type="button" className="registry-btn secondary" onClick={() => setRegistrationSuccess(null)}>
+                                Close
+                            </button>
+                            <button
+                                type="button"
+                                className="registry-btn primary"
+                                onClick={() => {
+                                    setRegistrationSuccess(null);
+                                    setActiveTab('new');
+                                }}
+                            >
+                                Register another
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {selectAllPagesOpen && (
+                <SelectAllPagesModal
+                    count={filteredFarmersList.length}
+                    onClose={() => setSelectAllPagesOpen(false)}
+                    onConfirm={applySelectAllMatching}
+                />
+            )}
+            {statusModalFarmer && (
+                <StatusUpdateModal
+                    farmer={statusModalFarmer}
+                    onClose={() => setStatusModalFarmer(null)}
+                    onSubmit={submitStatusUpdate}
+                />
+            )}
+            {faydaModalFarmer && (
+                <FaydaVerifyModal
+                    farmer={faydaModalFarmer}
+                    allFarmers={farmers}
+                    onClose={() => setFaydaModalFarmer(null)}
+                    onComplete={submitFaydaVerification}
+                />
+            )}
+            {auditModalFarmer && (
+                <AuditLogModal
+                    farmer={auditModalFarmer}
+                    onClose={() => setAuditModalFarmer(null)}
+                    onExport={handleAuditExport}
+                />
+            )}
+            {deleteModalFarmer && (
+                <SoftDeleteModal
+                    farmer={deleteModalFarmer}
+                    onClose={() => setDeleteModalFarmer(null)}
+                    onConfirm={submitSoftDelete}
+                />
+            )}
+            {bulkModal && (
+                <BulkActionModal
+                    action={bulkModal}
+                    selectedCount={selectedFarmers.length}
+                    onClose={() => setBulkModal(null)}
+                    onSubmit={runBulkAction}
+                />
+            )}
 
             {/* Document Viewer Modal */}
             {viewingDocument && (

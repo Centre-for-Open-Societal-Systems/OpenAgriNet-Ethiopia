@@ -207,6 +207,10 @@
   overflow: visible !important;
 }
 
+.sidebar-backdrop {
+  display: none;
+}
+
 /* Sidebar Drawer behavior strictly for Mobile & Tablet */
 @media (max-width: 1024px) {
   .sidebar {

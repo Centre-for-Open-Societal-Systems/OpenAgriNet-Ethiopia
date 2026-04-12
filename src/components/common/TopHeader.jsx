@@ -138,7 +138,7 @@ const TopHeader = ({
     return (
         <header className="main-header">
             <div className="header-left">
-                <button className="hamburger-menu" onClick={toggleSidebar}>
+                <button type="button" className="hamburger-menu" onClick={() => toggleSidebar?.()} aria-label="Toggle navigation menu">
                     <Menu size={24} />
                 </button>
                 {/* Full logo — desktop & tablet only */}

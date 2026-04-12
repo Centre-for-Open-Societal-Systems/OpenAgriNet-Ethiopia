@@ -12,6 +12,7 @@ import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 
 import './FarmerRegistrationForm.css';
+import { duplicateFarmerWarning, validateFaydaFormat } from './farmerRegistryModel';
 
 let DefaultIcon = L.icon({
     iconUrl: icon,
@@ -31,7 +32,7 @@ const MapUpdater = ({ lat, lng }) => {
 };
 
 
-const FarmerRegistrationForm = ({ onCancel, onComplete, initialData = null }) => {
+const FarmerRegistrationForm = ({ onCancel, onComplete, initialData = null, existingFarmers = [] }) => {
     const [currentStep, setCurrentStep] = useState(1);
     const [isDevAgentOpen, setIsDevAgentOpen] = useState(false);
     const [openPhoneDropdown, setOpenPhoneDropdown] = useState(null);
@@ -79,16 +80,22 @@ const FarmerRegistrationForm = ({ onCancel, onComplete, initialData = null }) =>
         if (initialData) {
             setFormData(prev => ({
                 ...prev,
-                fullNameLatin: initialData.name,
-                fullNameAmharic: initialData.fullNameAmharic || initialData.name,
+                fullNameLatin: initialData.fullNameLatin || initialData.name,
+                fullNameAmharic: initialData.fullNameAmharic || initialData.fullNameLocal || initialData.name,
                 gender: initialData.gender,
                 mobileNumber: initialData.phone,
                 email: initialData.email,
                 region: initialData.region,
                 woreda: initialData.woreda,
                 kebele: initialData.kebele,
-                landHoldings: initialData.acres.replace(' Acres', ''),
-                agricultureType: initialData.crops || []
+                village: initialData.village || prev.village,
+                landHoldings: (initialData.acres || '0').toString().replace(' Acres', ''),
+                agricultureType: initialData.crops || [],
+                nationalId: initialData.nationalId || initialData.faydaId || prev.nationalId,
+                registrationDate: initialData.registrationDateField || initialData.registeredDate || prev.registrationDate,
+                notes: initialData.notes != null ? initialData.notes : prev.notes,
+                primaryActivity: initialData.livelihood || initialData.primaryActivity || prev.primaryActivity,
+                dob: initialData.dob || prev.dob,
             }));
             setCurrentStep(4); // Go straight to Review & Submit
         }
@@ -231,8 +238,10 @@ const FarmerRegistrationForm = ({ onCancel, onComplete, initialData = null }) =>
     const [formData, setFormData] = useState({
         // Step 1: Personal
         fullNameAmharic: '',
-        fullNameLatin: '', // Mock pre-filled
+        fullNameLatin: '',
         dob: '',
+        registrationDate: new Date().toISOString().split('T')[0],
+        notes: '',
         gender: 'Male',
         nationalId: '', // Mock pre-filled
         mobileNumber: '', // Mock pre-filled
@@ -297,13 +306,53 @@ const FarmerRegistrationForm = ({ onCancel, onComplete, initialData = null }) =>
     }, [currentStep, hasAutoLocated]);
 
     const handleActualSubmit = () => {
+        const birth = formData.dob ? new Date(formData.dob) : null;
+        let ageYears = 30;
+        if (birth) {
+            const today = new Date();
+            ageYears = today.getFullYear() - birth.getFullYear();
+            const m = today.getMonth() - birth.getMonth();
+            if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) ageYears--;
+        }
+        const dup = duplicateFarmerWarning(
+            existingFarmers,
+            {
+                fullNameLatin: formData.fullNameLatin,
+                fullNameAmharic: formData.fullNameAmharic,
+                kebele: formData.kebele,
+                ageYears,
+            },
+            initialData?.id
+        );
+        if (dup) {
+            const ok = window.confirm(
+                `Possible duplicate: another farmer (${dup.id}) has a similar name, kebele, and age. Continue anyway?`
+            );
+            if (!ok) {
+                setShowSubmitModal(false);
+                return;
+            }
+        }
+        const fid = (formData.nationalId || '').trim();
+        if (fid) {
+            const clash = existingFarmers.find(
+                (f) =>
+                    f.id !== initialData?.id &&
+                    !f.deleted &&
+                    (f.faydaId || f.nationalId || '').trim().toLowerCase() === fid.toLowerCase()
+            );
+            if (clash) {
+                window.alert(`Fayda ID already used by farmer ${clash.id}. Change the ID or edit the existing record.`);
+                setShowSubmitModal(false);
+                return;
+            }
+        }
         setIsSubmitting(true);
-        // Simulate adding to list with animation duration (4s)
         setTimeout(() => {
             setIsSubmitting(false);
             setShowSubmitModal(false);
-            if (onComplete) onComplete(formData);
-        }, 4000);
+            if (onComplete) onComplete({ ...formData, faydaId: fid || undefined, primaryLivelihood: formData.primaryActivity });
+        }, 2000);
     };
 
     const handleFinalSubmitAttempt = () => {
@@ -319,7 +368,9 @@ const FarmerRegistrationForm = ({ onCancel, onComplete, initialData = null }) =>
 
     const validateStep1 = () => {
         const newErrors = {};
+        if (!formData.fullNameLatin.trim()) newErrors.fullNameLatin = true;
         if (!formData.fullNameAmharic.trim()) newErrors.fullNameAmharic = true;
+        if (!formData.registrationDate) newErrors.registrationDate = true;
         if (!formData.dob) {
             newErrors.dob = true;
         } else {
@@ -336,7 +387,13 @@ const FarmerRegistrationForm = ({ onCancel, onComplete, initialData = null }) =>
             }
         }
         if (!formData.gender) newErrors.gender = true;
-        if (!formData.nationalId.trim()) newErrors.nationalId = true;
+        if (formData.nationalId.trim()) {
+            const fmt = validateFaydaFormat(formData.nationalId);
+            if (!fmt.ok) {
+                newErrors.nationalId = true;
+                window.alert(fmt.message);
+            }
+        }
 
         // Basic phone validation (at least 9 digits)
         const phoneRegex = /^[0-9]{9,15}$/;
@@ -575,6 +632,16 @@ const FarmerRegistrationForm = ({ onCancel, onComplete, initialData = null }) =>
                 <div className="personal-details-pane">
                     <div className="form-grid-2col">
                         <div className="form-group">
+                            <label className="form-label">Full Name (English) <span className="req-v6">*</span></label>
+                            <input
+                                type="text"
+                                className={`form-input-v6 ${errors.fullNameLatin ? 'error' : ''}`}
+                                placeholder="Legal name in Latin script"
+                                value={formData.fullNameLatin}
+                                onChange={(e) => setFormData({ ...formData, fullNameLatin: e.target.value })}
+                            />
+                        </div>
+                        <div className="form-group">
                             <label className="form-label">Full Name (Local Language) <span className="req-v6">*</span></label>
                             <input
                                 type="text"
@@ -633,14 +700,15 @@ const FarmerRegistrationForm = ({ onCancel, onComplete, initialData = null }) =>
                             </div>
                         </div>
                         <div className="form-group">
-                            <label className="form-label">National ID / Kebele ID <span className="req-v6">*</span></label>
+                            <label className="form-label">Fayda ID / National ID (optional)</label>
                             <input
                                 type="text"
                                 className={`form-input-v6 ${errors.nationalId ? 'error' : ''}`}
-                                placeholder='Enter National ID'
+                                placeholder="If provided, must be unique in the national registry (mock check on save)"
                                 value={formData.nationalId}
                                 onChange={(e) => setFormData({ ...formData, nationalId: e.target.value })}
                             />
+                            <p className="form-helper-text">No live Fayda API — uniqueness is checked against local registry data only.</p>
                         </div>
                         <div className="form-group" ref={primaryPhoneRef} style={{ position: 'relative', zIndex: openPhoneDropdown === 'primary' ? 2000 : 1 }}>
                             <label className="form-label">Mobile Number <span className="req-v6">*</span></label>
@@ -789,6 +857,25 @@ const FarmerRegistrationForm = ({ onCancel, onComplete, initialData = null }) =>
                                 )}
                             </div>
                             <p className="form-helper-text">Agent performing this registration</p>
+                        </div>
+                        <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                            <label className="form-label">Registration date <span className="req-v6">*</span></label>
+                            <input
+                                type="date"
+                                className={`form-input-v6 ${errors.registrationDate ? 'error' : ''}`}
+                                value={formData.registrationDate}
+                                onChange={(e) => setFormData({ ...formData, registrationDate: e.target.value })}
+                            />
+                        </div>
+                        <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                            <label className="form-label">Notes (optional)</label>
+                            <textarea
+                                className="form-input-v6"
+                                rows={3}
+                                value={formData.notes}
+                                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                                placeholder="Internal notes for registry officers"
+                            />
                         </div>
                         <div className="form-group" style={{ gridColumn: '1 / -1', marginTop: '12px' }}>
                             <label className="modern-checkbox-v6 no-border" style={{ padding: 0, width: 'fit-content', display: 'inline-flex' }}>
@@ -1162,18 +1249,18 @@ const FarmerRegistrationForm = ({ onCancel, onComplete, initialData = null }) =>
                             />
                         </div>
                         <div className="form-group" ref={activityRef} style={{ position: 'relative', zIndex: openFarmingDropdown === 'activity' ? 1020 : 1 }}>
-                            <label className="form-label">Primary Farming Activity <span className="req-v6">*</span></label>
+                            <label className="form-label">Primary livelihood <span className="req-v6">*</span></label>
                             <div className={`custom-dropdown-v6 ${errors.primaryActivity ? 'error' : ''}`}>
                                 <div
                                     className={`dropdown-trigger-v6 ${openFarmingDropdown === 'activity' ? 'open' : ''}`}
                                     onClick={() => setOpenFarmingDropdown(openFarmingDropdown === 'activity' ? null : 'activity')}
                                 >
-                                    <span>{formData.primaryActivity || "Select activity"}</span>
+                                    <span>{formData.primaryActivity || 'Select livelihood'}</span>
                                     <ArrowDown size={18} className={`chevron-v6 ${openFarmingDropdown === 'activity' ? 'open' : ''}`} strokeWidth={2} />
                                 </div>
                                 {openFarmingDropdown === 'activity' && (
                                     <div className="dropdown-list-v6 animation-fadeInUp">
-                                        {["Crop Production", "Livestock", "Agroforestry"].map((act, idx) => (
+                                        {['Crops', 'Livestock', 'Mixed', 'Other'].map((act, idx) => (
                                             <div
                                                 key={idx}
                                                 className={`dropdown-item-v6 ${formData.primaryActivity === act ? 'active' : ''}`}
@@ -1576,7 +1663,7 @@ const FarmerRegistrationForm = ({ onCancel, onComplete, initialData = null }) =>
                                 {renderInlineEditableField("Annual Income", "incomeValue", formData.incomeValue)}
                                 {renderInlineEditableField("Card Status", "farmerCardStatus", formData.farmerCardStatus, false, ["Active", "Inactive"])}
                                 {renderInlineEditableField("Registration Status", "registrationStatus", formData.registrationStatus, false, ["Verified", "Pending", "Rejected"])}
-                                {renderInlineEditableField("Primary Farming Activity", "primaryActivity", formData.primaryActivity, false, ["Crop Production", "Livestock", "Agroforestry"])}
+                                {renderInlineEditableField('Primary livelihood', 'primaryActivity', formData.primaryActivity, false, ['Crops', 'Livestock', 'Mixed', 'Other'])}
 
                                 {renderInlineMultiSelectField(
                                     "Cooperative Membership",
