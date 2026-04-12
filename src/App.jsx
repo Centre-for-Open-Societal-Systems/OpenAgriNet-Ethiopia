@@ -1,139 +1,128 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 
-import FarmerDashboard from './components/farmer/FarmerDashboard';
-import FarmerRegistry from './components/farmer/FarmerRegistry';
-import BankUserDashboard from './components/bank-user/BankUserDashboard';
-import AdminDashboard from './components/admin/AdminDashboard';
-import SuperUserDashboard from './components/super-user/SuperUserDashboard';
-import Login from './components/Login';
+import FarmerDashboard from './components/farmer/FarmerDashboard'
+import BankUserDashboard from './components/bank-user/BankUserDashboard'
+import AdminDashboard from './components/admin/AdminDashboard'
+import SuperUserDashboard from './components/super-user/SuperUserDashboard'
+import Login from './components/Login'
 
-import keycloak from "./keycloak";
+import keycloak, { initKeycloak, KEYCLOAK_INIT_OPTIONS } from './keycloak'
+import { exchangeKeycloakSession } from './api/client'
 
-function App() {
+function AppRoutes() {
+  const navigate = useNavigate()
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [userRole, setUserRole] = useState(null)
+  const [loading, setLoading] = useState(true)
 
-  const initialized = useRef(false); // ✅ prevent double init
-
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [userRole, setUserRole] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  // ✅ Initialize Keycloak (ONLY ONCE)
   useEffect(() => {
-
-    if (initialized.current) return; // 🚫 stop second call
-    initialized.current = true;
-
-    keycloak.init({
-      onLoad: "check-sso",
-      pkceMethod: "S256",
-      checkLoginIframe: false
-    })
-      .then(auth => {
-        setIsAuthenticated(auth);
+    initKeycloak(KEYCLOAK_INIT_OPTIONS)
+      .then((auth) => {
+        setIsAuthenticated(auth)
 
         if (auth) {
-          const roles = keycloak.tokenParsed?.realm_access?.roles || [];
-          console.log("Roles:", roles);
-
-          if (roles.includes("farmer")) setUserRole("Farmer");
-          else if (roles.includes("bank")) setUserRole("Bank User");
-          else if (roles.includes("admin")) setUserRole("Admin");
-          else if (roles.includes("super")) setUserRole("Super User");
-          else setUserRole("Farmer");
+          const roles = keycloak.tokenParsed?.realm_access?.roles || []
+          if (roles.includes('farmer')) setUserRole('Farmer')
+          else if (roles.includes('bank')) setUserRole('Bank User')
+          else if (roles.includes('admin')) setUserRole('Admin')
+          else if (roles.includes('super')) setUserRole('Super User')
+          else setUserRole('Farmer')
         }
 
-        setLoading(false);
+        setLoading(false)
       })
-      .catch(err => {
-        console.error("Keycloak init failed", err);
-        setLoading(false);
-      });
+      .catch((err) => {
+        console.error('Keycloak init failed', err)
+        setLoading(false)
+      })
+  }, [])
 
-  }, []);
+  useEffect(() => {
+    if (!isAuthenticated || !keycloak.token) return undefined
+    exchangeKeycloakSession(keycloak.token)
+    const id = setInterval(() => {
+      keycloak
+        .updateToken(70)
+        .then((refreshed) => {
+          if (refreshed && keycloak.token) exchangeKeycloakSession(keycloak.token)
+        })
+        .catch(() => {})
+    }, 120000)
+    return () => clearInterval(id)
+  }, [isAuthenticated])
 
-  // ✅ Login
   const handleLogin = () => {
-    keycloak.login();
-  };
+    keycloak.login()
+  }
 
-  // ✅ Logout
   const handleLogout = () => {
-    keycloak.logout();
-  };
+    keycloak.logout({
+      redirectUri: 'http://localhost:5173/login',
+    })
+  }
 
-  // ✅ Render dashboard based on role
-  const renderDashboard = () => {
+  const handleRoleChange = (role) => {
+    setUserRole(role)
+    navigate('/dashboard/overview', { replace: true })
+  }
+
+  const renderRoleDashboard = () => {
+    const props = { userRole, onRoleChange: handleRoleChange, onLogout: handleLogout }
     switch (userRole) {
       case 'Farmer':
-        return <FarmerDashboard userRole={userRole} onLogout={handleLogout} />;
+        return <FarmerDashboard {...props} />
       case 'Bank User':
-        return <BankUserDashboard userRole={userRole} onLogout={handleLogout} />;
+        return <BankUserDashboard {...props} />
       case 'Admin':
-        return <AdminDashboard userRole={userRole} onLogout={handleLogout} />;
+        return <AdminDashboard {...props} />
       case 'Super User':
-        return <SuperUserDashboard userRole={userRole} onLogout={handleLogout} />;
+        return <SuperUserDashboard {...props} />
       default:
-        return <AdminDashboard userRole={userRole} onLogout={handleLogout} />;
+        return <AdminDashboard {...props} />
     }
-  };
+  }
 
-  // ⏳ Loading state
   if (loading) {
-    return <div>Loading...</div>;
+    return <div>Loading...</div>
   }
 
   return (
-    <Router>
-      <Routes>
+    <Routes>
+      <Route
+        path="/login"
+        element={
+          isAuthenticated ? (
+            <Navigate to="/dashboard/overview" replace />
+          ) : (
+            <Login onLogin={handleLogin} />
+          )
+        }
+      />
 
-        {/* LOGIN */}
-        <Route
-          path="/login"
-          element={
-            isAuthenticated ? (
-              <Navigate to="/dashboard" replace />
-            ) : (
-              <Login onLogin={handleLogin} />
-            )
-          }
-        />
+      <Route path="/dashboard" element={<Navigate to="/dashboard/overview" replace />} />
 
-        {/* DASHBOARD */}
-        <Route
-          path="/dashboard"
-          element={
-            isAuthenticated ? (
-              renderDashboard()
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
+      <Route
+        path="/dashboard/:section"
+        element={
+          isAuthenticated ? renderRoleDashboard() : <Navigate to="/login" replace />
+        }
+      />
 
-        {/* FARMER REGISTRY */}
-        <Route
-          path="/farmer-registry"
-          element={
-            isAuthenticated ? (
-              <FarmerRegistry userRole={userRole} onLogout={handleLogout} />
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
-
-        {/* ROOT */}
-        <Route
-          path="/"
-          element={
-            <Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />
-          }
-        />
-
-      </Routes>
-    </Router>
-  );
+      <Route
+        path="/"
+        element={
+          <Navigate to={isAuthenticated ? '/dashboard/overview' : '/login'} replace />
+        }
+      />
+    </Routes>
+  )
 }
 
-export default App;
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppRoutes />
+    </BrowserRouter>
+  )
+}

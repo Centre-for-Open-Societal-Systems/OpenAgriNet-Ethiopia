@@ -1,10 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useParams, Navigate } from 'react-router-dom';
 import './BankUserDashboard.css';
+import '../common/DashboardSidebarToggle.css';
 import '../common/ContentArea.css';
+import '../common/SectionPlaceholder.css';
 import {
     Home, Users, User, MapPin, Bird, Sprout, Mountain, Shield, Download,
     Database, BarChart2, Settings, ChevronDown, Bell, Globe, HelpCircle,
-    TrendingUp, Calendar, LogOut, Briefcase, Activity, Server, FileText, CloudRain, Sun, Moon, Languages, UserCircle, Landmark, Building2, LayoutDashboard
+    TrendingUp, Calendar, LogOut, Briefcase, Activity, Server, FileText, CloudRain, Sun, Moon, Languages, UserCircle, Landmark, Building2, LayoutDashboard, Menu
 } from 'lucide-react';
 
 // Bank User-specific components
@@ -12,9 +15,55 @@ import BankUserSidebar from './BankUserSidebar';
 import BankUserStats from './BankUserStats';
 import ATILogo from '../ATILogo';
 import TopHeader from '../common/TopHeader';
-import PageHeader from '../common/PageHeader';
+import SidebarNavLink from '../common/SidebarNavLink';
+import SectionPlaceholder from '../common/SectionPlaceholder';
+import WorkflowRouter from '../workflow/WorkflowRouter';
+
+const BANK_SECTIONS = new Set([
+  'overview',
+  'loan-applications',
+  'borrower-directory',
+  'risk-assessment',
+  'repayment-reports',
+  'financial-reports',
+  'bank-settings',
+]);
+
+const BANK_PLACEHOLDER = {
+  'loan-applications': {
+    title: 'Loan Applications',
+    description: 'Review, approve, and track agricultural loan applications from farmers and cooperatives.',
+    breadcrumbs: ['Loan Applications'],
+  },
+  'borrower-directory': {
+    title: 'Borrower Directory',
+    description: 'KYC-verified borrowers, exposure limits, and linked registry records.',
+    breadcrumbs: ['Borrower Directory'],
+  },
+  'risk-assessment': {
+    title: 'Risk Assessment',
+    description: 'Credit scores, collateral, and portfolio risk indicators.',
+    breadcrumbs: ['Risk Assessment'],
+  },
+  'repayment-reports': {
+    title: 'Repayment Reports',
+    description: 'Schedules, arrears, and repayment performance by product and region.',
+    breadcrumbs: ['Repayment Reports'],
+  },
+  'financial-reports': {
+    title: 'Financial Reports',
+    description: 'Disbursement, PAR, and regulatory reporting exports.',
+    breadcrumbs: ['Financial Reports'],
+  },
+  'bank-settings': {
+    title: 'Settings',
+    description: 'Bank user preferences, notifications, and workspace defaults.',
+    breadcrumbs: ['Settings'],
+  },
+};
 
 const BankUserDashboard = ({ userRole, onRoleChange, onLogout }) => {
+    const { section } = useParams();
     const [theme, setTheme] = useState('light');
     const [language, setLanguage] = useState('en');
     const [dateFilter, setDateFilter] = useState('Today');
@@ -24,6 +73,9 @@ const BankUserDashboard = ({ userRole, onRoleChange, onLogout }) => {
     const [dataVersion, setDataVersion] = useState(0);
     const [showDownloadOptions, setShowDownloadOptions] = useState(false);
     const [activities, setActivities] = useState([]);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(
+        typeof window !== 'undefined' && window.innerWidth > 1024
+    );
 
     const activityTypes = [
         { type: 'Loan', heading: 'New loan application', icon: <Landmark size={16} />, bg: 'green-bg' },
@@ -99,6 +151,7 @@ const BankUserDashboard = ({ userRole, onRoleChange, onLogout }) => {
     const filteredActivities = getFilteredActivities();
 
     const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
+    const toggleSidebar = () => setIsSidebarOpen((open) => !open);
 
     const handleDateFilterSelect = (e) => {
         const filter = e.target.value;
@@ -113,10 +166,22 @@ const BankUserDashboard = ({ userRole, onRoleChange, onLogout }) => {
         if (fromDate && toDate) setDataVersion(prev => prev + 1);
     };
 
+    if (!BANK_SECTIONS.has(section)) {
+        return <Navigate to="/dashboard/overview" replace />;
+    }
+
     return (
-        <div className={`dashboard-layout theme-${theme}`}>
+        <div className={`dashboard-layout theme-${theme} ${isSidebarOpen ? 'sidebar-open' : ''}`}>
+            {isSidebarOpen && (
+                <div
+                    className="sidebar-backdrop"
+                    onClick={toggleSidebar}
+                    role="presentation"
+                    aria-hidden="true"
+                />
+            )}
             {/* Sidebar */}
-            <aside className="sidebar">
+            <aside className={`sidebar ${isSidebarOpen ? 'open' : 'collapsed'}`}>
                 <div className="sidebar-header">
                     <div className="logo-container">
                         <div className="logo-icon">
@@ -127,59 +192,84 @@ const BankUserDashboard = ({ userRole, onRoleChange, onLogout }) => {
                             <span className="logo-subtext">Ethiopia</span>
                         </div>
                     </div>
+                    <button type="button" className="sidebar-embedded-toggler" onClick={toggleSidebar} aria-label="Toggle sidebar width">
+                        <Menu size={20} color="white" />
+                    </button>
                 </div>
 
                 <nav className="sidebar-nav">
-                    <div className="nav-item active">
-                        <Home size={20} />
-                        <span>Dashboard</span>
-                    </div>
-
+                    <SidebarNavLink to="/dashboard/overview" end icon={<Home size={20} />}>
+                        Dashboard
+                    </SidebarNavLink>
                     <BankUserSidebar />
-
                     <div className="sidebar-divider"></div>
-
-                    <div className="nav-item">
-                        <BarChart2 size={20} />
-                        <span>Financial Reports</span>
-                    </div>
-                    <div className="nav-item">
-                        <Settings size={20} />
-                        <span>Settings</span>
-                    </div>
+                    <SidebarNavLink to="/dashboard/financial-reports" icon={<BarChart2 size={20} />}>
+                        Financial Reports
+                    </SidebarNavLink>
+                    <SidebarNavLink to="/dashboard/bank-settings" icon={<Settings size={20} />}>
+                        Settings
+                    </SidebarNavLink>
                 </nav>
             </aside>
 
             {/* Main Content */}
             <main className="dashboard-main">
-                <TopHeader 
-                    userRole={userRole} 
-                    onRoleChange={onRoleChange} 
-                    theme={theme} 
-                    toggleTheme={toggleTheme} 
-                    language={language} 
-                    setLanguage={setLanguage} 
-                    onLogout={onLogout} 
+                <TopHeader
+                    userRole={userRole}
+                    onRoleChange={onRoleChange}
+                    theme={theme}
+                    toggleTheme={toggleTheme}
+                    language={language}
+                    setLanguage={setLanguage}
+                    onLogout={onLogout}
+                    toggleSidebar={toggleSidebar}
                 />
 
+                {section === 'overview' ? (
                 <div className="content-area">
-                    <PageHeader 
-                        title="Bank User Dashboard"
-                        subtitle={<>Supporting Agricultural Finance in <span className="highlight-text">Ethiopia</span></>}
-                        dateFilter={dateFilter}
-                        onDateFilterChange={handleDateFilterSelect}
-                        showCustomDatePicker={showCustomDatePicker}
-                        setShowCustomDatePicker={setShowCustomDatePicker}
-                        fromDate={fromDate}
-                        toDate={toDate}
-                        onFromDateChange={handleFromDateChange}
-                        onToDateChange={handleToDateChange}
-                        onApplyCustomDate={handleApplyCustomDate}
-                        showDownloadOptions={showDownloadOptions}
-                        setShowDownloadOptions={setShowDownloadOptions}
-                        onExportCSV={() => console.log('Export CSV')}
-                        onExportPDF={() => console.log('Export PDF')}
-                    />
+                    <div className="page-header">
+                        <div className="page-header-left">
+                            <h1>Bank User Dashboard</h1>
+                            <p>Supporting Agricultural Finance in <span className="highlight-text">Ethiopia</span></p>
+                        </div>
+                        <div className="page-header-right">
+                            <div className="page-header-actions">
+                                <div className="compact-date-wrapper">
+                                    <div className="compact-date-label">Select Date</div>
+                                    <div className="compact-date-select-container">
+                                        <Calendar size={18} className="compact-icon text-gray" />
+                                        <select value={dateFilter} onChange={handleDateFilterSelect} className="compact-date-select">
+                                            <option value="Today">Today</option>
+                                            <option value="Yesterday">Yesterday</option>
+                                            <option value="This Week">This Week</option>
+                                            <option value="This Month">This Month</option>
+                                            <option value="Custom Date">Custom Date</option>
+                                        </select>
+                                    </div>
+                                    {showCustomDatePicker && (
+                                        <div className="compact-custom-date-popup">
+                                            <div className="date-range-inputs">
+                                                <input type="date" value={fromDate} onChange={handleFromDateChange} className="custom-date-input" />
+                                                <input type="date" value={toDate} onChange={handleToDateChange} className="custom-date-input" />
+                                            </div>
+                                            <button className="apply-custom-date-btn" onClick={handleApplyCustomDate} disabled={!fromDate || !toDate}>Go</button>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="download-action-wrapper">
+                                    <button className="download-action-btn" onClick={() => setShowDownloadOptions(!showDownloadOptions)}>
+                                        <Download size={18} /><span>Download</span><ChevronDown size={16} />
+                                    </button>
+                                    {showDownloadOptions && (
+                                        <div className="download-options-dropdown">
+                                            <button className="download-option" onClick={() => setShowDownloadOptions(false)}><FileText size={16} /><span>CSV</span></button>
+                                            <button className="download-option" onClick={() => setShowDownloadOptions(false)}><FileText size={16} /><span>PDF</span></button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
                     <div className="stats-grid">
                         <BankUserStats dateFilter={dateFilter} dataVersion={dataVersion} />
@@ -217,6 +307,20 @@ const BankUserDashboard = ({ userRole, onRoleChange, onLogout }) => {
                         </div>
                     </div>
                 </div>
+                ) : (
+                <WorkflowRouter
+                    portalRole="Bank User"
+                    section={section}
+                    theme={theme}
+                    fallback={
+                        <SectionPlaceholder
+                            title={BANK_PLACEHOLDER[section].title}
+                            description={BANK_PLACEHOLDER[section].description}
+                            breadcrumbs={BANK_PLACEHOLDER[section].breadcrumbs}
+                        />
+                    }
+                />
+                )}
             </main>
         </div>
     );

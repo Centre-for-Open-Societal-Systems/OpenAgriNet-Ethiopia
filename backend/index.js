@@ -1,4 +1,11 @@
-require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+// Host-only overrides (gitignored). Skip inside Docker so compose env wins over mounted files.
+const inDocker = fs.existsSync('/.dockerenv');
+if (!inDocker) {
+  require('dotenv').config({ path: path.join(__dirname, '.env.local'), override: true });
+}
 const express = require('express');
 const cors = require('cors');
 const usersRouter = require('./routes/users');

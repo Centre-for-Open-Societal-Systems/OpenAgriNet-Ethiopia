@@ -1,0 +1,159 @@
+/* Shared: collapsible sidebar (desktop) + off-canvas drawer (≤1024px).
+   Import after each role’s dashboard CSS so !important rules win where needed. */
+
+.sidebar-backdrop {
+    display: none;
+}
+
+.dashboard-layout .sidebar {
+    transition:
+        width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+        transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+}
+
+.sidebar.collapsed {
+    width: 80px;
+}
+
+.sidebar.collapsed .logo-text,
+.sidebar.collapsed .nav-item span {
+    display: none;
+}
+
+.sidebar.collapsed .sidebar-header {
+    padding: 0 8px;
+    justify-content: center;
+}
+
+.sidebar.collapsed .logo-container {
+    gap: 0;
+}
+
+.sidebar.collapsed .sidebar-nav {
+    align-items: center;
+}
+
+.sidebar.collapsed .nav-item {
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    justify-content: center;
+    border-radius: 12px;
+    margin-bottom: 8px;
+    position: relative;
+}
+
+.sidebar.collapsed .nav-item.active {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.sidebar.collapsed .nav-item.active::before {
+    content: '';
+    position: absolute;
+    left: -16px;
+    height: 100%;
+    width: 4px;
+    background-color: #3b82f6;
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+}
+
+.sidebar-embedded-toggler {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 8px;
+    display: none !important;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+}
+
+.sidebar-embedded-toggler:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+@media (max-width: 1024px) {
+    .sidebar {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        height: 100vh !important;
+        width: 280px !important;
+        transform: translateX(-100%) !important;
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        z-index: 2000 !important;
+        box-shadow: none !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    .sidebar.open {
+        transform: translateX(0) !important;
+        box-shadow: 20px 0 50px rgba(0, 0, 0, 0.3) !important;
+    }
+
+    .sidebar-embedded-toggler {
+        display: none !important;
+    }
+
+    .sidebar-header {
+        display: flex !important;
+    }
+
+    .sidebar-nav {
+        display: flex !important;
+        flex-direction: column !important;
+        width: 100% !important;
+        padding: 16px !important;
+    }
+
+    .nav-item {
+        display: flex !important;
+        justify-content: flex-start !important;
+        padding: 12px 16px !important;
+        gap: 12px !important;
+    }
+
+    .nav-item span {
+        display: block !important;
+    }
+
+    .sidebar-backdrop {
+        display: block;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        background-color: rgba(0, 0, 0, 0.5) !important;
+        backdrop-filter: blur(4px) !important;
+        z-index: 1999 !important;
+        animation: dashboard-sidebar-backdrop-fade 0.3s ease-out !important;
+    }
+
+    .dashboard-main {
+        width: 100% !important;
+        margin-left: 0 !important;
+        padding-top: 70px !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard-main {
+        padding-top: 64px !important;
+    }
+}
+
+@keyframes dashboard-sidebar-backdrop-fade {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
