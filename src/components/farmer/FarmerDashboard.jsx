@@ -18,6 +18,7 @@ import SidebarNavLink from '../common/SidebarNavLink';
 import SectionPlaceholder from '../common/SectionPlaceholder';
 import WorkflowRouter from '../workflow/WorkflowRouter';
 import FarmerRegistry from './FarmerRegistry';
+import CropRegistry from './CropRegistry';
 
 const FARMER_SECTIONS = new Set([
   'overview',
