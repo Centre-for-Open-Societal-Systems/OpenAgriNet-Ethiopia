@@ -479,6 +479,10 @@ const FarmerDashboard = ({ userRole, onRoleChange, onLogout }) => {
         return <Navigate to="/dashboard/overview" replace />;
     }
 
+    if (section === 'crop-registry') {
+        return <CropRegistry userRole={userRole} onRoleChange={onRoleChange} onLogout={onLogout} />;
+    }
+
     if (section === 'farmer-registry') {
         return (
             <FarmerRegistry
