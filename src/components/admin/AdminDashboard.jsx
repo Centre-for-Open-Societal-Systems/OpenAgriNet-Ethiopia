@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
 import './AdminDashboard.css';
+import '../common/DashboardSidebarToggle.css';
 import '../common/ContentArea.css';
 import '../common/SectionPlaceholder.css';
 import {
     Home, Users, User, MapPin, Bird, Sprout, Mountain, Shield, Download,
     Database, BarChart2, Settings, ChevronDown, Bell, Globe, HelpCircle,
-    TrendingUp, Calendar, LogOut, Briefcase, Activity, Server, FileText, CloudRain, Sun, Moon, Languages, UserCircle, Landmark, Building2, LayoutDashboard
+    TrendingUp, Calendar, LogOut, Briefcase, Activity, Server, FileText, CloudRain, Sun, Moon, Languages, UserCircle, Landmark, Building2, LayoutDashboard, Menu
 } from 'lucide-react';
 
 // Admin-specific components
@@ -17,6 +18,7 @@ import TopHeader from '../common/TopHeader';
 import SidebarNavLink from '../common/SidebarNavLink';
 import SectionPlaceholder from '../common/SectionPlaceholder';
 import WorkflowRouter from '../workflow/WorkflowRouter';
+import FarmerRegistry from '../farmer/FarmerRegistry';
 
 const ADMIN_SECTIONS = new Set([
   'overview',
@@ -108,6 +110,9 @@ const AdminDashboard = ({ userRole, onRoleChange, onLogout }) => {
     const [dataVersion, setDataVersion] = useState(0);
     const [showDownloadOptions, setShowDownloadOptions] = useState(false);
     const [activities, setActivities] = useState([]);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(
+        typeof window !== 'undefined' && window.innerWidth > 1024
+    );
 
     const activityTypes = [
         { type: 'Registration', heading: 'New registry entry', icon: <Users size={16} />, bg: 'green-bg' },
@@ -182,6 +187,7 @@ const AdminDashboard = ({ userRole, onRoleChange, onLogout }) => {
     const filteredActivities = getFilteredActivities();
 
     const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
+    const toggleSidebar = () => setIsSidebarOpen((open) => !open);
 
     const handleDateFilterSelect = (e) => {
         const filter = e.target.value;
@@ -206,10 +212,30 @@ const AdminDashboard = ({ userRole, onRoleChange, onLogout }) => {
         return <Navigate to="/dashboard/overview" replace />;
     }
 
+    if (section === 'farmer-registry') {
+        return (
+            <FarmerRegistry
+                userRole={userRole}
+                onRoleChange={onRoleChange}
+                onLogout={onLogout}
+                overviewPath="/dashboard/overview"
+                extraSidebar={<AdminSidebar />}
+            />
+        );
+    }
+
     return (
-        <div className={`dashboard-layout theme-${theme}`}>
+        <div className={`dashboard-layout theme-${theme} ${isSidebarOpen ? 'sidebar-open' : ''}`}>
+            {isSidebarOpen && (
+                <div
+                    className="sidebar-backdrop"
+                    onClick={toggleSidebar}
+                    role="presentation"
+                    aria-hidden="true"
+                />
+            )}
             {/* Sidebar */}
-            <aside className="sidebar">
+            <aside className={`sidebar ${isSidebarOpen ? 'open' : 'collapsed'}`}>
                 <div className="sidebar-header">
                     <div className="logo-container">
                         <div className="logo-icon">
@@ -220,6 +246,9 @@ const AdminDashboard = ({ userRole, onRoleChange, onLogout }) => {
                             <span className="logo-subtext">Ethiopia</span>
                         </div>
                     </div>
+                    <button type="button" className="sidebar-embedded-toggler" onClick={toggleSidebar} aria-label="Toggle sidebar width">
+                        <Menu size={20} color="white" />
+                    </button>
                 </div>
 
                 <nav className="sidebar-nav">
@@ -239,14 +268,15 @@ const AdminDashboard = ({ userRole, onRoleChange, onLogout }) => {
 
             {/* Main Content */}
             <main className="dashboard-main">
-                <TopHeader 
-                    userRole={userRole} 
-                    onRoleChange={onRoleChange} 
-                    theme={theme} 
-                    toggleTheme={toggleTheme} 
-                    language={language} 
-                    setLanguage={setLanguage} 
-                    onLogout={onLogout} 
+                <TopHeader
+                    userRole={userRole}
+                    onRoleChange={onRoleChange}
+                    theme={theme}
+                    toggleTheme={toggleTheme}
+                    language={language}
+                    setLanguage={setLanguage}
+                    onLogout={onLogout}
+                    toggleSidebar={toggleSidebar}
                 />
 
                 {section === 'overview' ? (

@@ -12,10 +12,38 @@
   transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
+
+
 .header-left {
   display: flex;
   align-items: center;
+  gap: 12px;
 }
+
+.hamburger-menu {
+  display: flex !important;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.hamburger-menu:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+@media (max-width: 1024px) {
+  .hamburger-menu {
+    display: flex;
+  }
+}
+
+
 
 .ati-header-logo-container {
   display: flex;
@@ -71,6 +99,16 @@
 .ati-logo-text-english,
 .ati-logo-text-amharic {
   color: inherit;
+}
+
+/* Responsive logo visibility helpers */
+.mobile-logo-only {
+  display: none;
+}
+
+.mobile-hidden {
+  display: flex;
+  align-items: center;
 }
 
 .header-right {
@@ -509,7 +547,8 @@
 }
 
 /* Language Selector Pill */
-.language-selector-pill {
+.language-selector-pill,
+.mobile-language-selector-pill {
   display: flex;
   align-items: center;
   border: 1px solid #e5e7eb;
@@ -581,8 +620,8 @@
   border-radius: 8px;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   border: 1px solid var(--border-color);
-  padding: 8px 0;
-  width: 200px;
+  padding: 0px 0;
+  min-width: 240px;
   z-index: 50;
   cursor: default;
 }
@@ -594,6 +633,49 @@
   color: #6b7280;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+}
+
+.profile-dropdown-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.dropdown-avatar-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #10b981;
+}
+
+.dropdown-avatar-placeholder {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #10b981, #059669);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.dropdown-user-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.dropdown-user-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.dropdown-user-role {
+  font-size: 12px;
+  color: #6b7280;
 }
 
 .dropdown-item {
@@ -620,8 +702,305 @@
   color: #dc2626;
 }
 
+
 .dropdown-divider {
   height: 1px;
   background-color: #e5e7eb;
   margin: 6px 0;
+}
+
+.mobile-role-switcher {
+  display: none !important;
+}
+
+.dropdown-section-title {
+  padding: 12px 16px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.dropdown-item-icon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f0fdf4;
+  color: #16a34a;
+  border-radius: 50%;
+  margin-right: 4px;
+}
+
+.dropdown-item.active {
+  background: #f0fdf4;
+  color: #16a34a;
+  font-weight: 700;
+}
+
+/* ============================================================ */
+/* MEDIA QUERIES (At the end to ensure proper overrides)      */
+/* ============================================================ */
+
+@keyframes dropdownAppearRight {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (min-width: 1025px) {
+  .profile-dropdown {
+    right: 30px !important;
+  }
+
+  /* Hide profile header on desktop */
+  .mobile-tablet-only {
+    display: none !important;
+  }
+}
+
+
+@media (max-width: 1024px) {
+  .main-header {
+    height: 70px !important;
+    padding: 0 16px !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    z-index: 1000 !important;
+    background-color: var(--surface-color) !important;
+  }
+
+  .ati-header-logo-container {
+    max-width: 200px;
+  }
+
+  .header-right {
+    gap: 10px;
+  }
+
+  /* Compact right-side elements for tablet */
+  .role-label,
+  .user-info,
+  .lang-text-bold,
+  .language-selector-pill span:not(.lang-text-bold) {
+    display: none !important;
+  }
+
+  .user-profile {
+    height: 48px !important;
+    padding: 6px 12px !important;
+    gap: 8px !important;
+  }
+
+  .role-switcher-btn {
+    height: 48px !important;
+    padding: 6px 12px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .role-switcher-container {
+    display: none !important;
+  }
+
+  .mobile-role-switcher {
+    display: block !important;
+  }
+
+  .role-switcher-btn {
+    width: auto;
+    max-width: none;
+    height: 48px !important;
+    padding: 6px 12px !important;
+  }
+
+  .mobile-role-list-top {
+    padding: 0 !important;
+    position: relative;
+  }
+
+  .mobile-role-list-top .role-dropdown.mobile-role-dropdown {
+    position: absolute !important;
+    top: calc(100% - 2px) !important;
+    right: 0 !important;
+    left: auto !important;
+    width: 200px !important;
+    background-color: white !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 12px !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+    z-index: 100 !important;
+    overflow: hidden !important;
+    padding: 8px 0 !important;
+    display: block !important;
+    margin: 0 !important;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideUp {
+    from {
+      transform: translateY(100%);
+    }
+
+    to {
+      transform: translateY(0);
+    }
+  }
+
+  .mobile-role-btn-bottom {
+    padding: 0 !important;
+  }
+
+  .mobile-role-btn-bottom .role-switcher-btn {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 44px !important;
+    border-radius: 10px !important;
+  }
+
+  .mobile-role-btn-bottom .role-text-container {
+    display: flex !important;
+  }
+
+
+  .main-header {
+    height: 64px !important;
+    padding: 0 24px 0 12px !important;
+    overflow-x: visible !important;
+    overflow-y: visible !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    z-index: 1000 !important;
+    background-color: var(--surface-color) !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05) !important;
+  }
+
+  /* Increase hamburger menu size */
+  .hamburger-menu {
+    width: 52px !important;
+    height: 52px !important;
+    padding: 12px !important;
+    font-size: 24px !important;
+  }
+
+  /* Full logo hidden on mobile */
+  .mobile-hidden {
+    display: none !important;
+  }
+
+  /* Compact logo shown on mobile */
+  .mobile-logo-only {
+    display: flex !important;
+    align-items: center;
+  }
+
+  /* Show profile header only on mobile/tablet */
+  .mobile-tablet-only {
+    display: flex !important;
+  }
+
+  /* Increase compact logo sizing */
+  .mobile-logo-only .ati-header-logo-container {
+    display: block !important;
+    width: 110px !important;
+    height: 48px !important;
+    max-width: 110px !important;
+    flex-shrink: 0 !important;
+    overflow: visible !important;
+  }
+
+  .header-right {
+    gap: 8px !important;
+    width: auto !important;
+    justify-content: flex-end !important;
+    flex-wrap: nowrap !important;
+  }
+
+  /* 2. Language Button */
+  .language-selector-pill {
+    display: none !important;
+  }
+
+  .lang-text {
+    display: none !important;
+  }
+
+  .lang-text-bold {
+    display: inline-block !important;
+  }
+
+  .lang-option {
+    padding: 0 12px !important;
+    width: 50%;
+  }
+
+  /* 3. Theme toggle */
+  .theme-toggle-btn {
+    width: 48px !important;
+    height: 48px !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* 4. User profile button */
+  button.user-profile {
+    height: 48px !important;
+    padding: 6px 12px !important;
+    gap: 8px !important;
+    flex-shrink: 0 !important;
+    background: var(--surface-color) !important;
+    border: 1px solid var(--border-color) !important;
+    outline: none !important;
+    display: flex !important;
+    align-items: center !important;
+    cursor: pointer !important;
+    width: auto !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+  }
+
+  .user-info,
+  .user-name,
+  .user-role {
+    display: none !important;
+  }
+
+  .avatar,
+  .avatar.profile-avatar {
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  .user-profile-chevron {
+    display: block !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .lang-text {
+    display: none !important;
+  }
 }

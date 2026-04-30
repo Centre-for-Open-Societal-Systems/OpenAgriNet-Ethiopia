@@ -126,7 +126,7 @@
 
         <!-- Username + password -->
         <div class="fp-signin-fields">
-          <div class="fp-field">
+          <!-- <div class="fp-field">
             <label for="login-username">Email or mobile number</label>
             <input type="text" id="login-username" name="username" placeholder="Optional — enter email or mobile for demo" autocomplete="username">
           </div>
@@ -139,7 +139,7 @@
               </button>
             </span>
             <a href="#" class="fp-forgot-password">Forgot password?</a>
-          </div>
+          </div> -->
           <div class="fp-actions">
             <button type="submit" class="btn fp-btn-primary">Sign In
               <svg class="fp-btn-arrow" viewBox="0 0 24 24"><path fill="currentColor" d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
@@ -189,8 +189,10 @@
       e.preventDefault();
       const altLocal = e.altKey;
       const role = document.querySelector('input[name=role]:checked').value;
-      const username = document.getElementById('login-username').value.trim();
-      const password = document.getElementById('login-password').value;
+      const usernameEl = document.getElementById('login-username');
+      const passwordEl = document.getElementById('login-password');
+      const username = usernameEl ? usernameEl.value.trim() : '';
+      const password = passwordEl ? passwordEl.value : '';
 
       // Demo local login
       if (!username && !password && altLocal) {
