@@ -18,6 +18,7 @@ import SidebarNavLink from '../common/SidebarNavLink';
 import SectionPlaceholder from '../common/SectionPlaceholder';
 import WorkflowRouter from '../workflow/WorkflowRouter';
 import FarmerRegistry from './FarmerRegistry';
+import CropRegistry from './CropRegistry';
 
 const FARMER_SECTIONS = new Set([
   'overview',
@@ -476,6 +477,10 @@ const FarmerDashboard = ({ userRole, onRoleChange, onLogout }) => {
 
     if (!FARMER_SECTIONS.has(section)) {
         return <Navigate to="/dashboard/overview" replace />;
+    }
+
+    if (section === 'crop-registry') {
+        return <CropRegistry userRole={userRole} onRoleChange={onRoleChange} onLogout={onLogout} />;
     }
 
     if (section === 'farmer-registry') {
